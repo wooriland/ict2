@@ -1,9 +1,39 @@
-export const URL={USERS:'http://localhost:3002/users',BBS:'http://localhost:3002/bbs',PHOTOS:'https://jsonplaceholder.typicode.com/photos'};
-export const AUTH_KEY ={USERNAME:'username',PASSWORD:'password'};
-export const BBS_PAGING={PAGESIZE:2,BLOCKPAGE:3};
+// src/config/constants.js
 
-//리듀서 사용시 action의 type정의
-//예 : ALL-모든 사용자 목록 요청,LOGIN:로그인 요청
-//     WRITE-게시글 등록 요청,TOTALSIZE-총 글수 수정 요청,NOWPAGE-현재 페이지 수정 요청
-export const USERS={ALL:'all',LOGIN:'login',LOGOUT:'logout',LIKES:'likes'};
-export const BBS ={ALL:'all',WRITE:'write',DELETE:'delete',TOTALSIZE:'totalsize',NOWPAGE:'nowpage'}
+// ✅ Spring API Base
+export const API_BASE = "http://localhost:8080";
+
+// ✅ API URL
+export const URL = {
+  AUTH_SIGNUP: `${API_BASE}/api/auth/signup`,
+  AUTH_LOGIN: `${API_BASE}/api/auth/login`,
+};
+
+// ✅ 세션 키
+export const AUTH_KEY = {
+  USERNAME: "username",
+  PASSWORD: "password",
+};
+
+// ✅ USERS reducer action
+export const USERS = {
+  ALL: "all",
+  LOGIN: "login",
+  LOGOUT: "logout",
+  LIKES: "likes",
+};
+
+// ✅ BBS reducer action
+export const BBS = {
+  ALL: "all",
+  WRITE: "write",
+  DELETE: "delete",
+  TOTALSIZE: "totalsize",
+  NOWPAGE: "nowpage",
+};
+
+// ✅ 🔥 BBS 페이징 설정 (List.jsx에서 사용 중)
+export const BBS_PAGING = {
+  PAGESIZE: 2,
+  BLOCKPAGE: 3,
+};

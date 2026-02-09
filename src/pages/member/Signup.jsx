@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -16,13 +16,18 @@ export default function Signup() {
   const passwordRef = useRef(null);
   const confirmRef = useRef(null);
 
+  // ✅ 아이디 중복 메시지(입력칸 아래)
+  const [usernameError, setUsernameError] = useState("");
+
   const handleSignup = async (e) => {
     e.preventDefault();
+    setUsernameError("");
 
     const username = usernameRef.current?.value?.trim() || "";
     const password = passwordRef.current?.value || "";
     const confirm = confirmRef.current?.value || "";
 
+    // ✅ 1) 프론트 기본 검증
     if (!username || !password || !confirm) {
       window.alert("모든 항목을 입력하세요.");
       return;
@@ -33,45 +38,77 @@ export default function Signup() {
     }
 
     try {
-      const res = await axios.get(URL.USERS);
-      const exists = res.data?.some((u) => u.username === username);
+      /**
+       * ✅ Spring 회원가입 API 호출
+       * - 서버: POST http://localhost:8080/api/auth/signup
+       *
+       * ⚠️ 중요: constants.js에 아래를 추가해야 함
+       * export const URL = {
+       *   ...,
+       *   AUTH_SIGNUP: "http://localhost:8080/api/auth/signup"
+       * }
+       */
+      const res = await axios.post(URL.AUTH_SIGNUP, {
+        username,
+        password,
+        confirm, // ✅ 서버 SignupRequest(confirm) 필드로 전달
+      });
 
-      if (exists) {
-        window.alert("이미 사용 중인 아이디입니다.");
+      // ✅ 성공(201 + { ok:true, message:"..." })
+      if (res.status === 201 && res.data?.ok) {
+        window.alert(
+          res.data?.message ||
+            "환영합니다! 🏠\n이제 내 집 마련이 진짜 가능해질 것 같은 첫걸음이에요!"
+        );
+        navigate("/login", { replace: true });
         return;
       }
 
-      await axios.post(URL.USERS, { username, password });
-
-      window.alert("회원가입이 완료되었습니다. 로그인 해주세요!");
-      navigate("/login", { replace: true });
+      // 혹시 서버 응답이 예상과 다른 경우(방어 코드)
+      window.alert("회원가입 응답이 예상과 다릅니다. 서버 응답을 확인하세요.");
     } catch (err) {
+      const status = err.response?.status;
+
+      // ✅ 409 = 아이디 중복 → input 아래 빨간 글씨
+      if (status === 409) {
+        // 서버가 내려주는 message를 그대로 쓰되,
+        // 요구사항 문구가 고정이면 아래처럼 고정해도 됨.
+        setUsernameError("아이디 중복 사용 불가");
+        usernameRef.current?.focus();
+        return;
+      }
+
+      // ✅ 그 외 에러(400/500 등)
+      const msg =
+        err.response?.data?.message ||
+        "회원가입 처리 중 오류가 발생했습니다. (서버/콘솔 확인)";
       console.log(err);
-      window.alert("회원가입 처리 중 오류가 발생했습니다. (콘솔 확인)");
+      window.alert(msg);
     }
+  };
+
+  // ✅ 아이디를 다시 입력하면 에러 문구 제거
+  const handleUsernameChange = () => {
+    if (usernameError) setUsernameError("");
   };
 
   return (
     <div className="auth-page">
       <div className="auth-grid">
-        {/* ✅ 좌/우 통짜 패널 + story.mp4 */}
         <AuthSidePanels
           left={{
             title: "가입 안내",
-            text: "회원가입 전 아래 내용을 확인해주세요.",
+            text: "내집마련의 시작! 간단히 가입하고 참여하세요.",
             links: [
               { to: "/help", label: "고객센터" },
               { to: "/login", label: "로그인" },
               { to: "/find-id", label: "아이디 찾기" },
               { to: "/find-pw", label: "비밀번호 찾기" },
             ],
-            notices: [
-              "아이디는 중복 불가(USERS 데이터 기준)",
-              "비밀번호는 추후 정책(길이/특수문자) 적용 가능",
-            ],
+            notices: ["아이디는 중복 불가", "비밀번호는 추후 정책(길이/특수문자) 강화 가능"],
             tips: [
               "가입 완료 후 로그인 화면으로 이동합니다.",
-              "오류가 나면 콘솔에서 네트워크 응답을 확인하세요.",
+              "아이디 중복이면 입력칸 아래 빨간 글씨가 표시됩니다.",
             ],
           }}
           right={{
@@ -103,9 +140,7 @@ export default function Signup() {
 
           <section className="auth-hero auth-hero--signup">
             <h1 className="auth-hero-title">회원가입</h1>
-            <p className="auth-hero-sub">
-              내집마련의 시작! 간단히 가입하고 참여하세요.
-            </p>
+            <p className="auth-hero-sub">내집마련의 시작! 간단히 가입해요.</p>
           </section>
 
           <section className="auth-card auth-card--signup" aria-label="signup form">
@@ -117,7 +152,12 @@ export default function Signup() {
                 placeholder="아이디"
                 autoComplete="username"
                 name="username"
+                onChange={handleUsernameChange}
               />
+
+              {/* ✅ 아이디 중복 메시지 */}
+              {usernameError && <div className="auth-input-error">{usernameError}</div>}
+
               <input
                 ref={passwordRef}
                 className="auth-input"
