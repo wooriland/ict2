@@ -1,5 +1,0 @@
- /* fixed-top 적용시 화면이 안으로 들어가는 방지용 */
-body{
-
-    padding-top: 55px;
-}
