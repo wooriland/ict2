@@ -1,3 +1,4 @@
+// src/router.jsx
 import { createBrowserRouter } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/member/Login";
@@ -18,7 +19,6 @@ import InputForm from "./pages/bbs/InputForm";
 import UpdateForm from "./pages/bbs/UpdateForm";
 import Detail from "./pages/bbs/Detail";
 import ErrorPage from "./components/ErrorPage";
-import { authLoader } from "./util/authLoader";
 
 const router = createBrowserRouter([
   {
@@ -28,23 +28,21 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
 
-      // ✅ 공개 Auth 페이지들
+      // 공개 Auth 페이지들
       { path: "login", element: <Login /> },
       { path: "signup", element: <Signup /> },
-
-      // ✅ 빈 페이지라도 라우팅 연결(NotFound 방지)
       { path: "find-id", element: <FindId /> },
       { path: "find-pw", element: <FindPw /> },
       { path: "help", element: <Help /> },
 
-      // ✅ Users
+      // Users
       {
         path: "users",
         element: <Users />,
         children: [{ path: ":username", element: <Profile /> }],
       },
 
-      // ✅ 인증 필요: AuthRoute
+      // ✅ 인증 필요: AuthRoute로 통일
       {
         element: <AuthRoute />,
         children: [
@@ -58,14 +56,11 @@ const router = createBrowserRouter([
               { path: ":id", element: <Detail /> },
             ],
           },
+          {
+            path: "photo",
+            element: <Photo />,
+          },
         ],
-      },
-
-      // ✅ loader로 접근 제한
-      {
-        path: "photo",
-        element: <Photo />,
-        loader: authLoader,
       },
 
       { path: "*", element: <NotFound /> },

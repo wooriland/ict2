@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUsersContext } from "../../context/useUsersContext";
 import { AUTH_KEY, URL, USERS } from "../../config/constants";
 import axios from "axios";
@@ -8,6 +8,7 @@ import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
+import AuthMessage from "../../components/AuthMessage"; // ✅ [추가] 카드 메시지 컴포넌트
 
 export default function Login() {
   const navigate = useNavigate();
@@ -18,60 +19,129 @@ export default function Login() {
 
   const { dispatch } = useUsersContext();
 
+  const [saveId, setSaveId] = useState(false);
+  const SAVED_USERNAME_KEY = "saved_username";
+
+  // ✅ [추가] alert 대신 카드 안 메시지 상태
+  // type: "success" | "error" | "info"
+  const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
+
+  // ✅ [추가] 로그인 요청 중 중복 클릭 방지 + 버튼 텍스트 변경
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_USERNAME_KEY);
+    if (saved) {
+      if (usernameRef.current) usernameRef.current.value = saved;
+      setSaveId(true);
+
+      // ✅ (선택) 저장된 아이디가 있으면 "안내" 메시지로 UX 업그레이드
+      setMsg({
+        type: "info",
+        title: "📌 저장된 집 주소가 있습니다",
+        desc: "아이디가 자동으로 입력되었습니다. 열쇠(비밀번호)만 입력해 주세요.",
+      });
+    }
+  }, []);
+
   const handleLogin = (e) => {
     e.preventDefault();
+
+    // ✅ 이미 로그인 요청 중이면 무시(연타 방지)
+    if (isLoading) return;
 
     const username = usernameRef.current?.value?.trim() || "";
     const password = passwordRef.current?.value || "";
 
+    // ✅ 1) 입력값 검증: alert -> 카드 메시지
     if (!username || !password) {
-      window.alert("아이디와 비밀번호를 입력하세요.");
+      setMsg({
+        type: "error",
+        title: "🧱 아직 벽돌이 다 채워지지 않았어요",
+        desc: "아이디(집 주소)와 비밀번호(열쇠)를 모두 입력해야 문이 열립니다.",
+      });
       return;
     }
 
-    // ✅ (중요) 이제 /api/users GET + filter 방식이 아니라
-    // ✅ Spring 로그인 API로 POST 요청
+    // ✅ 2) 요청 시작: 로딩 ON + 기존 메시지 초기화(선택)
+    setIsLoading(true);
+    setMsg({ type: "info", title: "", desc: "" });
+
     axios
       .post(
         URL.AUTH_LOGIN,
         { username, password },
         { headers: { "Content-Type": "application/json" } }
       )
-      .then((res) => {
-        // ✅ 성공 시: 세션 저장 + 전역 상태 업데이트 + 이동
+      .then(() => {
+        // ✅ 3) 아이디 저장
+        if (saveId) localStorage.setItem(SAVED_USERNAME_KEY, username);
+        else localStorage.removeItem(SAVED_USERNAME_KEY);
+
+        // ✅ 4) 로그인 유지: localStorage + sessionStorage 동시 저장(호환)
+        localStorage.setItem(AUTH_KEY.USERNAME, username);
         sessionStorage.setItem(AUTH_KEY.USERNAME, username);
+
+        // ✅ 5) 전역 인증 상태 반영
         dispatch({ type: USERS.LOGIN, isAuthenticated: username });
 
-        // ✅ 기존 흐름 유지: 원래 가려던 페이지가 있으면 그곳으로
-        const from = location.state?.from || `/users/${username}`;
-        navigate(from, { replace: true });
+        // ✅ 6) 성공 메시지 + 2초 후 자동 이동 (내집마련 컨셉)
+        setMsg({
+          type: "success",
+          title: "🔑 문이 열렸습니다!",
+          desc: "내 집으로 들어가는 중입니다… 2초 뒤 이동합니다.",
+        });
+
+        // ✅ AuthRoute가 state={{from: location}} 로 저장했으므로 from.pathname으로 복귀
+        // ✅ 기본값은 "/" (Home)
+        const from = location.state?.from?.pathname || "/";
+
+        // ✅ 2초 후 이동
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 2000);
       })
       .catch((err) => {
-        // ✅ 실패 시: 서버 응답 기반으로 메시지 표시
+        // ✅ 실패 시에도 로딩은 풀어줘야 한다
         const status = err?.response?.status;
         const msgFromServer =
           err?.response?.data?.message ||
           err?.response?.data?.error ||
           err?.response?.data;
 
+        // ✅ 7) 실패 메시지: alert -> 카드 메시지
         if (status === 401 || status === 400) {
-          window.alert("아이디와 비번 불일치");
+          setMsg({
+            type: "error",
+            title: "🔒 열쇠가 맞지 않습니다",
+            desc: "아이디 또는 비밀번호가 일치하지 않습니다. 다시 확인해 주세요.",
+          });
         } else if (status === 404) {
-          window.alert(
-            "로그인 API를 찾을 수 없습니다. (URL.AUTH_LOGIN 경로 확인 필요)"
-          );
+          setMsg({
+            type: "error",
+            title: "🧭 길을 잃었습니다 (API 없음)",
+            desc: "로그인 API를 찾을 수 없습니다. URL.AUTH_LOGIN 경로를 확인해 주세요.",
+          });
         } else {
-          window.alert("로그인 중 오류가 발생했습니다. 콘솔을 확인하세요.");
+          setMsg({
+            type: "error",
+            title: "📡 통신이 불안정합니다",
+            desc: "로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+          });
         }
 
         console.error("LOGIN ERROR:", status, msgFromServer || err);
+      })
+      .finally(() => {
+        // ✅ 성공이든 실패든 요청이 끝났으니 로딩 OFF
+        // (성공이면 2초 뒤 이동하지만, 버튼은 즉시 풀려도 UX상 문제 없음)
+        setIsLoading(false);
       });
   };
 
   return (
     <div className="auth-page">
       <div className="auth-grid">
-        {/* ✅ 좌/우 통짜 패널 + story.mp4 */}
         <AuthSidePanels
           left={{
             title: "안내 메뉴",
@@ -99,7 +169,6 @@ export default function Login() {
           }}
         />
 
-        {/* ✅ 가운데 캔버스 */}
         <main className="auth-canvas">
           <img className="auth-bg-img" src={bg} alt="" />
 
@@ -121,9 +190,7 @@ export default function Login() {
 
           <section className="auth-hero auth-hero--login">
             <h1 className="auth-hero-title">로그인</h1>
-            <p className="auth-hero-sub">
-              내 집마련의 꿈, 여기서 로그인하고 시작하세요!
-            </p>
+            <p className="auth-hero-sub">내 집마련의 꿈, 여기서 로그인하고 시작하세요!</p>
           </section>
 
           <section className="auth-card auth-card--login" aria-label="login form">
@@ -132,26 +199,36 @@ export default function Login() {
                 ref={usernameRef}
                 className="auth-input"
                 type="text"
-                placeholder="아이디"
+                placeholder="아이디 (집 주소)"
                 autoComplete="username"
                 name="username"
+                disabled={isLoading} // ✅ [추가] 요청 중 입력 잠금(선택)
               />
               <input
                 ref={passwordRef}
                 className="auth-input"
                 type="password"
-                placeholder="비밀번호"
+                placeholder="비밀번호 (열쇠)"
                 autoComplete="current-password"
                 name="password"
+                disabled={isLoading} // ✅ [추가] 요청 중 입력 잠금(선택)
               />
 
-              <button className="auth-btn" type="submit">
-                로그인하기
+              <button className="auth-btn" type="submit" disabled={isLoading}>
+                {isLoading ? "문을 여는 중..." : "로그인하기"}
               </button>
+
+              {/* ✅ [추가] alert 대신 카드 내부 메시지 */}
+              <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
               <div className="auth-row">
                 <label className="auth-check">
-                  <input type="checkbox" />
+                  <input
+                    type="checkbox"
+                    checked={saveId}
+                    onChange={(e) => setSaveId(e.target.checked)}
+                    disabled={isLoading} // ✅ (선택) 요청 중 체크 변경 방지
+                  />
                   <span>아이디 저장</span>
                 </label>
 

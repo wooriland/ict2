@@ -6,7 +6,8 @@ import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
-import { URL } from "../../config/constants"; // ✅ [추가] API 상수
+import AuthMessage from "../../components/AuthMessage"; // ✅ [추가] 카드 메시지 통일
+import { URL } from "../../config/constants";
 
 export default function FindId() {
   // ✅ 입력값(email)
@@ -14,22 +15,27 @@ export default function FindId() {
 
   // ✅ UX 상태
   const [loading, setLoading] = useState(false);
-  const [resultMsg, setResultMsg] = useState(""); // 성공 메시지
-  const [errorMsg, setErrorMsg] = useState("");   // 실패 메시지
+
+  // ✅ [변경] resultMsg / errorMsg -> msg 하나로 통일
+  // type: "success" | "error" | "info"
+  const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // ✅ 제출할 때마다 이전 메시지 초기화
-    setResultMsg("");
-    setErrorMsg("");
+    setMsg({ type: "info", title: "", desc: "" });
 
     // ✅ 입력값 정리(공백 제거)
     const trimmed = email.trim();
 
-    // ✅ 프론트 1차 검증(UX)
+    // ✅ 프론트 1차 검증(UX) - alert 대신 메시지
     if (!trimmed) {
-      setErrorMsg("이메일을 입력하세요.");
+      setMsg({
+        type: "error",
+        title: "📮 집 주소(이메일)가 비어 있어요",
+        desc: "가입할 때 입력한 이메일을 적어주셔야 아이디를 찾아드릴 수 있어요.",
+      });
       return;
     }
 
@@ -43,14 +49,20 @@ export default function FindId() {
        * Success: { "username": "..." }
        * Fail(404): { ok:false, message:"일치하는 회원 정보가 없습니다" }
        */
-      const res = await axios.post(URL.AUTH_FIND_USERNAME, {
-        email: trimmed,
-      });
+      const res = await axios.post(
+        URL.AUTH_FIND_USERNAME,
+        { email: trimmed },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
       const username = res?.data?.username;
 
-      // ✅ 성공 UX
-      setResultMsg(`회원님의 아이디는 ${username} 입니다`);
+      // ✅ 성공 UX (내집마련 컨셉)
+      setMsg({
+        type: "success",
+        title: "📬 집 주소를 찾았습니다!",
+        desc: `회원님의 아이디는 "${username}" 입니다.`,
+      });
     } catch (err) {
       /**
        * ✅ 실패 케이스 처리
@@ -58,11 +70,29 @@ export default function FindId() {
        * - 400(@Valid 실패): message 내려올 수 있음
        * - 그 외: 일반 오류 메시지
        */
-      const msg =
-        err?.response?.data?.message ||
-        "요청 처리 중 오류가 발생했습니다.";
+      const serverMsg = err?.response?.data?.message;
+      const status = err?.response?.status;
 
-      setErrorMsg(msg);
+      // ✅ 내집마련 컨셉으로 실패 메시지 정리
+      if (status === 404) {
+        setMsg({
+          type: "error",
+          title: "🗺 등록된 집을 찾지 못했습니다",
+          desc: serverMsg || "해당 이메일로 가입된 회원 정보가 없습니다.",
+        });
+      } else if (status === 400) {
+        setMsg({
+          type: "error",
+          title: "📮 이메일을 확인해 주세요",
+          desc: serverMsg || "요청 형식이 올바르지 않습니다.",
+        });
+      } else {
+        setMsg({
+          type: "error",
+          title: "📡 요청 처리 중 문제가 발생했습니다",
+          desc: serverMsg || "잠시 후 다시 시도해 주세요.",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -82,7 +112,10 @@ export default function FindId() {
               { to: "/find-pw", label: "비밀번호 찾기" },
               { to: "/signup", label: "회원가입" },
             ],
-            notices: ["현재는 이메일로 아이디를 찾습니다.", "추후 본인 인증 기능을 붙일 수 있어요."],
+            notices: [
+              "현재는 이메일로 아이디를 찾습니다.",
+              "추후 본인 인증 기능을 붙일 수 있어요.",
+            ],
             tips: ["가입 시 입력한 이메일로 아이디를 조회합니다."],
           }}
           right={{
@@ -122,7 +155,7 @@ export default function FindId() {
               <input
                 className="auth-input auth-input--login"
                 type="email"
-                placeholder="이메일"
+                placeholder="이메일 (집 주소)"
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -130,21 +163,11 @@ export default function FindId() {
               />
 
               <button className="auth-btn auth-btn--login" type="submit" disabled={loading}>
-                {loading ? "조회 중..." : "아이디 찾기"}
+                {loading ? "집 주소를 찾는 중..." : "아이디 찾기"}
               </button>
 
-              {/* ✅ 결과 메시지 영역(카드 안에서 바로 보여주기) */}
-              {resultMsg && (
-                <div style={{ marginTop: 12, fontWeight: 700 }}>
-                  ✅ {resultMsg}
-                </div>
-              )}
-
-              {errorMsg && (
-                <div style={{ marginTop: 12, fontWeight: 700 }}>
-                  ❌ {errorMsg}
-                </div>
-              )}
+              {/* ✅ 결과/오류/안내: 카드 메시지 컴포넌트로 통일 */}
+              <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
               <div className="auth-row" style={{ justifyContent: "flex-end" }}>
                 <div className="auth-links">

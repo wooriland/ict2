@@ -8,6 +8,7 @@ import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
+import AuthMessage from "../../components/AuthMessage"; // ✅ [추가] 카드 메시지 컴포넌트
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -23,21 +24,37 @@ export default function Signup() {
   // ✅ 이메일 관련 에러 메시지(입력칸 아래)
   const [emailError, setEmailError] = useState("");
 
+  // ✅ [추가] alert 대신 카드 안 메시지 상태
+  const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
+
+  // ✅ [추가] 요청 중 중복 클릭 방지 + 버튼 텍스트 변경
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSignup = async (e) => {
     e.preventDefault();
+
+    // ✅ 이미 요청 중이면 무시(연타 방지)
+    if (isLoading) return;
 
     // ✅ 매 요청마다 에러 초기화
     setUsernameError("");
     setEmailError("");
 
+    // ✅ 매 요청마다 카드 메시지 초기화(선택)
+    setMsg({ type: "info", title: "", desc: "" });
+
     const username = usernameRef.current?.value?.trim() || "";
-    const email = emailRef.current?.value?.trim() || ""; // ✅ 추가
+    const email = emailRef.current?.value?.trim() || "";
     const password = passwordRef.current?.value || "";
     const confirm = confirmRef.current?.value || "";
 
     // ✅ 1) 프론트 기본 검증 (공백 체크)
     if (!username || !email || !password || !confirm) {
-      window.alert("모든 항목을 입력하세요.");
+      setMsg({
+        type: "error",
+        title: "🧱 아직 재료가 부족해요",
+        desc: "아이디(집 주소), 이메일, 비밀번호(열쇠)를 모두 입력해야 집을 지을 수 있어요.",
+      });
       return;
     }
 
@@ -45,46 +62,70 @@ export default function Signup() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setEmailError("이메일 형식이 올바르지 않습니다.");
+      setMsg({
+        type: "error",
+        title: "📮 주소 형식이 이상해요",
+        desc: "이메일 형식을 다시 확인해 주세요. (예: myhome@example.com)",
+      });
       emailRef.current?.focus();
       return;
     }
 
     // ✅ 3) 비밀번호 확인
     if (password !== confirm) {
-      window.alert("비밀번호가 일치하지 않습니다.");
+      setMsg({
+        type: "error",
+        title: "🗝 열쇠가 서로 달라요",
+        desc: "비밀번호와 비밀번호 확인이 일치하지 않습니다.",
+      });
+      confirmRef.current?.focus();
       return;
     }
+
+    // ✅ 4) 서버 요청 시작
+    setIsLoading(true);
 
     try {
       /**
        * ✅ Spring 회원가입 API 호출
-       * - 서버: POST http://localhost:8080/api/auth/signup
-       *
-       * ⚠️ 중요: constants.js에 아래를 추가해야 함
-       * export const URL = {
-       *   ...,
-       *   AUTH_SIGNUP: "http://localhost:8080/api/auth/signup"
-       * }
+       * - constants.js에 URL.AUTH_SIGNUP 필요
        */
-      const res = await axios.post(URL.AUTH_SIGNUP, {
-        username,
-        email,    // ✅ 서버 SignupRequest(email) 필드로 전달
-        password,
-        confirm,  // ✅ 서버 SignupRequest(confirm) 필드로 전달
-      });
+      const res = await axios.post(
+        URL.AUTH_SIGNUP,
+        {
+          username,
+          email,
+          password,
+          confirm,
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
 
       // ✅ 성공(201 + { ok:true, message:"..." })
       if (res.status === 201 && res.data?.ok) {
-        window.alert(
-          res.data?.message ||
-            "환영합니다! 🏠\n이제 내 집 마련이 진짜 가능해질 것 같은 첫걸음이에요!"
-        );
-        navigate("/login", { replace: true });
+        // ✅ alert 대신 성공 메시지 + 2초 후 로그인 이동
+        setMsg({
+          type: "success",
+          title: "🏠 내 집 마련의 첫 열쇠를 얻었습니다!",
+          desc:
+            (res.data?.message &&
+              `${res.data.message} 잠시 후 로그인 화면으로 이동합니다.`) ||
+            "가입이 완료되었습니다. 2초 뒤 로그인 화면으로 이동합니다.",
+        });
+
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 2000);
+
         return;
       }
 
-      // 혹시 서버 응답이 예상과 다른 경우(방어 코드)
-      window.alert("회원가입 응답이 예상과 다릅니다. 서버 응답을 확인하세요.");
+      // ✅ 혹시 서버 응답이 예상과 다른 경우(방어 코드)
+      setMsg({
+        type: "error",
+        title: "⚠️ 응답이 예상과 다릅니다",
+        desc: "회원가입 응답 형태가 예상과 다릅니다. 서버 응답을 확인해 주세요.",
+      });
     } catch (err) {
       const status = err.response?.status;
       const serverMsg = err.response?.data?.message || "";
@@ -94,28 +135,50 @@ export default function Signup() {
         // 서버 메시지에 "이메일"이 들어가면 이메일 에러로 분기
         if (serverMsg.includes("이메일")) {
           setEmailError(serverMsg || "이메일 중복 사용 불가");
+          setMsg({
+            type: "error",
+            title: "📮 이미 사용 중인 이메일입니다",
+            desc: "다른 이메일 주소로 다시 시도해 주세요.",
+          });
           emailRef.current?.focus();
           return;
         }
 
-        // 기본은 아이디 중복으로 처리
+        // 기본은 아이디 중복
         setUsernameError(serverMsg || "아이디 중복 사용 불가");
+        setMsg({
+          type: "error",
+          title: "🚪 이미 사용 중인 집 주소입니다",
+          desc: "다른 아이디로 새로운 집 주소를 정해주세요.",
+        });
         usernameRef.current?.focus();
         return;
       }
 
-      // ✅ 400에서도 이메일 중복/검증 메시지가 올 수 있으니 방어적으로 처리
+      // ✅ 400에서도 이메일 검증 메시지가 올 수 있으니 방어적으로 처리
       if (status === 400 && serverMsg.includes("이메일")) {
         setEmailError(serverMsg);
+        setMsg({
+          type: "error",
+          title: "📮 이메일을 확인해 주세요",
+          desc: serverMsg,
+        });
         emailRef.current?.focus();
         return;
       }
 
       // ✅ 그 외 에러(400/500 등)
-      const msg =
+      const msgText =
         serverMsg || "회원가입 처리 중 오류가 발생했습니다. (서버/콘솔 확인)";
       console.log(err);
-      window.alert(msg);
+
+      setMsg({
+        type: "error",
+        title: "📡 가입 도중 문제가 발생했습니다",
+        desc: msgText,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -190,49 +253,57 @@ export default function Signup() {
                 ref={usernameRef}
                 className="auth-input"
                 type="text"
-                placeholder="아이디"
+                placeholder="아이디 (집 주소)"
                 autoComplete="username"
                 name="username"
                 onChange={handleUsernameChange}
+                disabled={isLoading} // ✅ [추가] 요청 중 입력 잠금(선택)
               />
 
-              {/* ✅ 아이디 중복 메시지 */}
-              {usernameError && <div className="auth-input-error">{usernameError}</div>}
+              {/* ✅ 아이디 중복 메시지 (입력칸 아래) */}
+              {usernameError && (
+                <div className="auth-input-error">{usernameError}</div>
+              )}
 
-              {/* ✅ 이메일 입력 추가 (레이아웃 유지: input 한 줄 추가) */}
               <input
                 ref={emailRef}
                 className="auth-input"
                 type="email"
-                placeholder="이메일"
+                placeholder="이메일 (연락처)"
                 autoComplete="email"
                 name="email"
                 onChange={handleEmailChange}
+                disabled={isLoading} // ✅ [추가]
               />
 
-              {/* ✅ 이메일 에러 메시지 */}
+              {/* ✅ 이메일 에러 메시지 (입력칸 아래) */}
               {emailError && <div className="auth-input-error">{emailError}</div>}
 
               <input
                 ref={passwordRef}
                 className="auth-input"
                 type="password"
-                placeholder="비밀번호"
+                placeholder="비밀번호 (열쇠)"
                 autoComplete="new-password"
                 name="password"
+                disabled={isLoading} // ✅ [추가]
               />
               <input
                 ref={confirmRef}
                 className="auth-input"
                 type="password"
-                placeholder="비밀번호 확인"
+                placeholder="비밀번호 확인 (열쇠 재확인)"
                 autoComplete="new-password"
                 name="confirm"
+                disabled={isLoading} // ✅ [추가]
               />
 
-              <button className="auth-btn" type="submit">
-                가입하기
+              <button className="auth-btn" type="submit" disabled={isLoading}>
+                {isLoading ? "집을 짓는 중..." : "가입하기"}
               </button>
+
+              {/* ✅ [추가] alert 대신 카드 내부 메시지 */}
+              <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
               <div className="auth-row">
                 <div className="auth-links">

@@ -418,6 +418,51 @@ body {
   filter: none;
 }
 
+/* =========================================================
+   ✅ [추가] 카드 내부 메시지 박스 (alert 대체)
+   - type: success / error / info
+   ========================================================= */
+.auth-message {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+
+  font-size: 14px;
+  line-height: 1.45;
+
+  border: 1px solid rgba(120,130,150,0.22);
+  background: rgba(255,255,255,0.92);
+}
+
+.auth-message__title {
+  margin: 0 0 6px;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.auth-message__desc {
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* ✅ 성공: 내집마련 - 입주/열쇠 */
+.auth-message.success {
+  border-color: rgba(16,185,129,0.38);
+  background: rgba(236, 253, 245, 0.92);
+}
+
+/* ✅ 실패: 내집마련 - 잠금/주소 없음 */
+.auth-message.error {
+  border-color: rgba(239,68,68,0.38);
+  background: rgba(254, 242, 242, 0.92);
+}
+
+/* ✅ 안내/진행: */
+.auth-message.info {
+  border-color: rgba(59,130,246,0.30);
+  background: rgba(239, 246, 255, 0.92);
+}
+
 /* =========================
    ✅ 하단 링크 영역
    ========================= */
