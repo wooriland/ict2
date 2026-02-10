@@ -13,25 +13,43 @@ export default function Signup() {
   const navigate = useNavigate();
 
   const usernameRef = useRef(null);
+  const emailRef = useRef(null);        // ✅ 추가
   const passwordRef = useRef(null);
   const confirmRef = useRef(null);
 
   // ✅ 아이디 중복 메시지(입력칸 아래)
   const [usernameError, setUsernameError] = useState("");
 
+  // ✅ 이메일 관련 에러 메시지(입력칸 아래)
+  const [emailError, setEmailError] = useState("");
+
   const handleSignup = async (e) => {
     e.preventDefault();
+
+    // ✅ 매 요청마다 에러 초기화
     setUsernameError("");
+    setEmailError("");
 
     const username = usernameRef.current?.value?.trim() || "";
+    const email = emailRef.current?.value?.trim() || ""; // ✅ 추가
     const password = passwordRef.current?.value || "";
     const confirm = confirmRef.current?.value || "";
 
-    // ✅ 1) 프론트 기본 검증
-    if (!username || !password || !confirm) {
+    // ✅ 1) 프론트 기본 검증 (공백 체크)
+    if (!username || !email || !password || !confirm) {
       window.alert("모든 항목을 입력하세요.");
       return;
     }
+
+    // ✅ 2) 이메일 형식 체크(가벼운 정규식)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("이메일 형식이 올바르지 않습니다.");
+      emailRef.current?.focus();
+      return;
+    }
+
+    // ✅ 3) 비밀번호 확인
     if (password !== confirm) {
       window.alert("비밀번호가 일치하지 않습니다.");
       return;
@@ -50,8 +68,9 @@ export default function Signup() {
        */
       const res = await axios.post(URL.AUTH_SIGNUP, {
         username,
+        email,    // ✅ 서버 SignupRequest(email) 필드로 전달
         password,
-        confirm, // ✅ 서버 SignupRequest(confirm) 필드로 전달
+        confirm,  // ✅ 서버 SignupRequest(confirm) 필드로 전달
       });
 
       // ✅ 성공(201 + { ok:true, message:"..." })
@@ -68,20 +87,33 @@ export default function Signup() {
       window.alert("회원가입 응답이 예상과 다릅니다. 서버 응답을 확인하세요.");
     } catch (err) {
       const status = err.response?.status;
+      const serverMsg = err.response?.data?.message || "";
 
-      // ✅ 409 = 아이디 중복 → input 아래 빨간 글씨
+      // ✅ 409 = 중복 계열 (아이디/이메일)
       if (status === 409) {
-        // 서버가 내려주는 message를 그대로 쓰되,
-        // 요구사항 문구가 고정이면 아래처럼 고정해도 됨.
-        setUsernameError("아이디 중복 사용 불가");
+        // 서버 메시지에 "이메일"이 들어가면 이메일 에러로 분기
+        if (serverMsg.includes("이메일")) {
+          setEmailError(serverMsg || "이메일 중복 사용 불가");
+          emailRef.current?.focus();
+          return;
+        }
+
+        // 기본은 아이디 중복으로 처리
+        setUsernameError(serverMsg || "아이디 중복 사용 불가");
         usernameRef.current?.focus();
+        return;
+      }
+
+      // ✅ 400에서도 이메일 중복/검증 메시지가 올 수 있으니 방어적으로 처리
+      if (status === 400 && serverMsg.includes("이메일")) {
+        setEmailError(serverMsg);
+        emailRef.current?.focus();
         return;
       }
 
       // ✅ 그 외 에러(400/500 등)
       const msg =
-        err.response?.data?.message ||
-        "회원가입 처리 중 오류가 발생했습니다. (서버/콘솔 확인)";
+        serverMsg || "회원가입 처리 중 오류가 발생했습니다. (서버/콘솔 확인)";
       console.log(err);
       window.alert(msg);
     }
@@ -90,6 +122,11 @@ export default function Signup() {
   // ✅ 아이디를 다시 입력하면 에러 문구 제거
   const handleUsernameChange = () => {
     if (usernameError) setUsernameError("");
+  };
+
+  // ✅ 이메일을 다시 입력하면 에러 문구 제거
+  const handleEmailChange = () => {
+    if (emailError) setEmailError("");
   };
 
   return (
@@ -105,10 +142,14 @@ export default function Signup() {
               { to: "/find-id", label: "아이디 찾기" },
               { to: "/find-pw", label: "비밀번호 찾기" },
             ],
-            notices: ["아이디는 중복 불가", "비밀번호는 추후 정책(길이/특수문자) 강화 가능"],
+            notices: [
+              "아이디는 중복 불가",
+              "이메일은 중복 불가",
+              "비밀번호는 추후 정책(길이/특수문자) 강화 가능",
+            ],
             tips: [
               "가입 완료 후 로그인 화면으로 이동합니다.",
-              "아이디 중복이면 입력칸 아래 빨간 글씨가 표시됩니다.",
+              "아이디/이메일 중복이면 입력칸 아래 빨간 글씨가 표시됩니다.",
             ],
           }}
           right={{
@@ -157,6 +198,20 @@ export default function Signup() {
 
               {/* ✅ 아이디 중복 메시지 */}
               {usernameError && <div className="auth-input-error">{usernameError}</div>}
+
+              {/* ✅ 이메일 입력 추가 (레이아웃 유지: input 한 줄 추가) */}
+              <input
+                ref={emailRef}
+                className="auth-input"
+                type="email"
+                placeholder="이메일"
+                autoComplete="email"
+                name="email"
+                onChange={handleEmailChange}
+              />
+
+              {/* ✅ 이메일 에러 메시지 */}
+              {emailError && <div className="auth-input-error">{emailError}</div>}
 
               <input
                 ref={passwordRef}

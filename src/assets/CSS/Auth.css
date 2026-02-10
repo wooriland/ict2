@@ -206,10 +206,7 @@ body {
   margin: 2px 0;
 }
 
-/* ✅ 오른쪽(미디어) 영역
-   - 패널 내부에서 남는 공간 채우기
-   - 영상이 레이아웃을 밀지 않도록 overflow 제어
-*/
+/* ✅ 오른쪽(미디어) 영역 */
 .auth-media {
   flex: 1;
   min-height: 0;
@@ -236,16 +233,14 @@ body {
   display: block;
 }
 
-/* ✅ 비디오: 비율 유지 + 레이아웃 영향 최소화
-   - 720px 원본도 컨테이너에 맞춰 축소됨
-*/
+/* ✅ 비디오 */
 .auth-media-video {
   width: 100%;
-  height: auto;         /* ✅ 비율 유지 */
-  max-height: 360px;    /* ✅ 너무 커져서 패널을 밀지 않게 */
+  height: auto;
+  max-height: 360px;
   display: block;
-  object-fit: contain;  /* ✅ 비율 깨짐 방지 */
-  background: #000;     /* ✅ 레터박스 깔끔하게 */
+  object-fit: contain;
+  background: #000;
 }
 
 /* =========================================================
@@ -382,20 +377,21 @@ body {
   background: #fff;
 }
 
+/* ✅ [추가] disabled 입력 UX (verify 후 잠김, loading 중 잠김) */
+.auth-input:disabled {
+  background: rgba(241, 245, 249, 0.9); /* 살짝 회색 */
+  color: rgba(51, 65, 85, 0.85);
+  cursor: not-allowed;
+}
+
 /* =========================================================
    ✅ 아이디 중복/유효성 에러 메시지 (Signup.jsx에서 사용)
-   - 아이디 input 바로 아래에 붙음
-   - 다음 input과 간격도 확보
    ========================================================= */
 .auth-input-error {
   color: #e53935;
   font-size: 13px;
   font-weight: 900;
-
-  /* ✅ input 바로 아래에 자연스럽게 붙게 */
   margin: -6px 2px 10px;
-
-  /* ✅ 글자 줄바꿈이 생겨도 보기 좋게 */
   line-height: 1.2;
 }
 
@@ -413,6 +409,13 @@ body {
 
 .auth-btn:hover {
   filter: brightness(0.98);
+}
+
+/* ✅ [추가] disabled 버튼 UX (loading 중 중복 클릭 방지) */
+.auth-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+  filter: none;
 }
 
 /* =========================
@@ -487,6 +490,22 @@ body {
   border-radius: 8px;
   font-size: 16px;
   font-weight: 800;
+}
+
+/* ✅ [추가] FindPw에서 안내 메시지를 예쁘게 보여줄 클래스 */
+.auth-help-text {
+  margin: -2px 2px 10px; /* input 아래에 자연스럽게 붙게 */
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #374151;
+}
+
+/* ✅ [추가] verified 후 폼이 늘어날 때 구분선 */
+.auth-divider {
+  height: 1px;
+  background: rgba(120,130,150,0.25);
+  margin: 14px 0;
 }
 
 /* 모바일 */

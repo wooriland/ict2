@@ -29,28 +29,43 @@ export default function Login() {
       return;
     }
 
+    // ✅ (중요) 이제 /api/users GET + filter 방식이 아니라
+    // ✅ Spring 로그인 API로 POST 요청
     axios
-      .get(URL.USERS)
+      .post(
+        URL.AUTH_LOGIN,
+        { username, password },
+        { headers: { "Content-Type": "application/json" } }
+      )
       .then((res) => {
-        if (res.data.length !== 0) {
-          const user = res.data.filter(
-            (u) => u.username === username && u.password === password
-          );
+        // ✅ 성공 시: 세션 저장 + 전역 상태 업데이트 + 이동
+        sessionStorage.setItem(AUTH_KEY.USERNAME, username);
+        dispatch({ type: USERS.LOGIN, isAuthenticated: username });
 
-          if (user.length === 1) {
-            sessionStorage.setItem(AUTH_KEY.USERNAME, username);
-            dispatch({ type: USERS.LOGIN, isAuthenticated: username });
-
-            const from = location.state?.from || `/users/${username}`;
-            navigate(from, { replace: true });
-          } else {
-            window.alert("아이디와 비번 불일치");
-          }
-        } else {
-          window.alert("등록된 회원이 없습니다.");
-        }
+        // ✅ 기존 흐름 유지: 원래 가려던 페이지가 있으면 그곳으로
+        const from = location.state?.from || `/users/${username}`;
+        navigate(from, { replace: true });
       })
-      .catch((err) => console.log(err));
+      .catch((err) => {
+        // ✅ 실패 시: 서버 응답 기반으로 메시지 표시
+        const status = err?.response?.status;
+        const msgFromServer =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.response?.data;
+
+        if (status === 401 || status === 400) {
+          window.alert("아이디와 비번 불일치");
+        } else if (status === 404) {
+          window.alert(
+            "로그인 API를 찾을 수 없습니다. (URL.AUTH_LOGIN 경로 확인 필요)"
+          );
+        } else {
+          window.alert("로그인 중 오류가 발생했습니다. 콘솔을 확인하세요.");
+        }
+
+        console.error("LOGIN ERROR:", status, msgFromServer || err);
+      });
   };
 
   return (
@@ -69,7 +84,7 @@ export default function Login() {
             ],
             notices: [
               "현재는 데모 버전입니다.",
-              "아이디/비밀번호는 USERS 데이터 기준으로 검사합니다.",
+              "아이디/비밀번호는 Spring 로그인 API 기준으로 검사합니다.",
             ],
             tips: [
               "로그인 후 게시판(/bbs) 및 사진(/photo) 이용이 가능합니다.",

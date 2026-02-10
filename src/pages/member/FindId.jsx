@@ -1,13 +1,71 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import axios from "axios";
+
 import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
+import { URL } from "../../config/constants"; // ✅ [추가] API 상수
 
 export default function FindId() {
-  const handleSubmit = (e) => {
+  // ✅ 입력값(email)
+  const [email, setEmail] = useState("");
+
+  // ✅ UX 상태
+  const [loading, setLoading] = useState(false);
+  const [resultMsg, setResultMsg] = useState(""); // 성공 메시지
+  const [errorMsg, setErrorMsg] = useState("");   // 실패 메시지
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    window.alert("아이디 찾기 기능은 추후 구현 예정입니다.");
+
+    // ✅ 제출할 때마다 이전 메시지 초기화
+    setResultMsg("");
+    setErrorMsg("");
+
+    // ✅ 입력값 정리(공백 제거)
+    const trimmed = email.trim();
+
+    // ✅ 프론트 1차 검증(UX)
+    if (!trimmed) {
+      setErrorMsg("이메일을 입력하세요.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      /**
+       * ✅ 백엔드 스펙
+       * POST /api/auth/find-username
+       * Request: { "email": "..." }
+       * Success: { "username": "..." }
+       * Fail(404): { ok:false, message:"일치하는 회원 정보가 없습니다" }
+       */
+      const res = await axios.post(URL.AUTH_FIND_USERNAME, {
+        email: trimmed,
+      });
+
+      const username = res?.data?.username;
+
+      // ✅ 성공 UX
+      setResultMsg(`회원님의 아이디는 ${username} 입니다`);
+    } catch (err) {
+      /**
+       * ✅ 실패 케이스 처리
+       * - 404: "일치하는 회원 정보가 없습니다"
+       * - 400(@Valid 실패): message 내려올 수 있음
+       * - 그 외: 일반 오류 메시지
+       */
+      const msg =
+        err?.response?.data?.message ||
+        "요청 처리 중 오류가 발생했습니다.";
+
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,8 +82,8 @@ export default function FindId() {
               { to: "/find-pw", label: "비밀번호 찾기" },
               { to: "/signup", label: "회원가입" },
             ],
-            notices: ["현재는 임시 폼입니다.", "추후 본인 인증 기능을 붙일 수 있어요."],
-            tips: ["이메일 또는 전화번호로 아이디를 찾는 방식이 일반적입니다."],
+            notices: ["현재는 이메일로 아이디를 찾습니다.", "추후 본인 인증 기능을 붙일 수 있어요."],
+            tips: ["가입 시 입력한 이메일로 아이디를 조회합니다."],
           }}
           right={{
             title: "가이드 영상",
@@ -56,21 +114,37 @@ export default function FindId() {
 
           <section className="auth-hero">
             <h1 className="auth-hero-title">아이디 찾기</h1>
-            <p className="auth-hero-sub">이메일/전화번호로 아이디를 찾아보세요.</p>
+            <p className="auth-hero-sub">가입 시 입력한 이메일로 아이디를 찾아보세요.</p>
           </section>
 
           <section className="auth-card auth-card--find" aria-label="find id form">
             <form onSubmit={handleSubmit}>
               <input
                 className="auth-input auth-input--login"
-                type="text"
-                placeholder="이메일 또는 전화번호"
+                type="email"
+                placeholder="이메일"
                 autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
 
-              <button className="auth-btn auth-btn--login" type="submit">
-                아이디 찾기
+              <button className="auth-btn auth-btn--login" type="submit" disabled={loading}>
+                {loading ? "조회 중..." : "아이디 찾기"}
               </button>
+
+              {/* ✅ 결과 메시지 영역(카드 안에서 바로 보여주기) */}
+              {resultMsg && (
+                <div style={{ marginTop: 12, fontWeight: 700 }}>
+                  ✅ {resultMsg}
+                </div>
+              )}
+
+              {errorMsg && (
+                <div style={{ marginTop: 12, fontWeight: 700 }}>
+                  ❌ {errorMsg}
+                </div>
+              )}
 
               <div className="auth-row" style={{ justifyContent: "flex-end" }}>
                 <div className="auth-links">
