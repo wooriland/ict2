@@ -1,3 +1,5 @@
+// src/pages/member/login.jsx
+
 import { useEffect, useRef, useState } from "react";
 import { useUsersContext } from "../../context/useUsersContext";
 import { AUTH_KEY, URL, USERS } from "../../config/constants";
@@ -8,7 +10,7 @@ import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
-import AuthMessage from "../../components/AuthMessage"; // ✅ [추가] 카드 메시지 컴포넌트
+import AuthMessage from "../../components/AuthMessage"; // ✅ 카드 메시지 컴포넌트
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,12 +24,31 @@ export default function Login() {
   const [saveId, setSaveId] = useState(false);
   const SAVED_USERNAME_KEY = "saved_username";
 
-  // ✅ [추가] alert 대신 카드 안 메시지 상태
+  // ✅ alert 대신 카드 메시지 상태
   // type: "success" | "error" | "info"
   const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
 
-  // ✅ [추가] 로그인 요청 중 중복 클릭 방지 + 버튼 텍스트 변경
+  // ✅ 로그인 요청 중 중복 클릭 방지 + 버튼 텍스트 변경
   const [isLoading, setIsLoading] = useState(false);
+
+  // =========================================================
+  // ✅ [추가] Google OAuth2 로그인 시작
+  // - 버튼 클릭 -> 백엔드 /oauth2/authorization/google로 이동
+  // =========================================================
+  const handleGoogleLogin = () => {
+    // ✅ 이미 로그인 요청 중이면(일반 로그인), 소셜 이동도 막기(선택)
+    if (isLoading) return;
+
+    // ✅ UX: 카드 안내 메시지(선택)
+    setMsg({
+      type: "info",
+      title: "🔄 Google 로그인으로 이동합니다",
+      desc: "잠시 후 Google 인증 페이지로 이동합니다.",
+    });
+
+    // ✅ 백엔드 OAuth2 시작점으로 이동 (Spring Security가 구글로 리다이렉트)
+    window.location.href = URL.OAUTH2_GOOGLE_AUTH;
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(SAVED_USERNAME_KEY);
@@ -144,8 +165,12 @@ export default function Login() {
       <div className="auth-grid">
         <AuthSidePanels
           left={{
-            title: "안내 메뉴",
-            text: "로그인 문제가 있으면 아래 기능을 이용하세요.",
+            // ✅ [수정] 왼쪽 패널을 "로그인 안내" 중심으로 강화
+            title: "로그인 안내",
+            text:
+              "• 일반 로그인: 아이디/비밀번호로 로그인합니다.\n" +
+              "• Google 로그인: 구글 계정으로 로그인 후, 필요하면 기존 계정과 연결합니다.\n" +
+              "• 연결이 필요한 경우 ‘계정 연결’ 화면으로 자동 이동됩니다.",
             links: [
               { to: "/help", label: "고객센터" },
               { to: "/find-id", label: "아이디 찾기" },
@@ -154,11 +179,13 @@ export default function Login() {
             ],
             notices: [
               "현재는 데모 버전입니다.",
-              "아이디/비밀번호는 Spring 로그인 API 기준으로 검사합니다.",
+              "일반 로그인은 Spring 로그인 API 기준으로 검사합니다.",
+              "Google 로그인은 OAuth2 인증 후 자동으로 처리됩니다.",
             ],
             tips: [
               "로그인 후 게시판(/bbs) 및 사진(/photo) 이용이 가능합니다.",
               "비밀번호를 잊으면 비밀번호 찾기를 이용하세요.",
+              "Google 로그인 후 연결이 필요하면 안내 화면이 뜹니다.",
             ],
           }}
           right={{
@@ -190,7 +217,9 @@ export default function Login() {
 
           <section className="auth-hero auth-hero--login">
             <h1 className="auth-hero-title">로그인</h1>
-            <p className="auth-hero-sub">내 집마련의 꿈, 여기서 로그인하고 시작하세요!</p>
+            <p className="auth-hero-sub">
+              내 집마련의 꿈, 여기서 로그인하고 시작하세요!
+            </p>
           </section>
 
           <section className="auth-card auth-card--login" aria-label="login form">
@@ -202,7 +231,7 @@ export default function Login() {
                 placeholder="아이디 (집 주소)"
                 autoComplete="username"
                 name="username"
-                disabled={isLoading} // ✅ [추가] 요청 중 입력 잠금(선택)
+                disabled={isLoading} // ✅ 요청 중 입력 잠금(선택)
               />
               <input
                 ref={passwordRef}
@@ -211,14 +240,29 @@ export default function Login() {
                 placeholder="비밀번호 (열쇠)"
                 autoComplete="current-password"
                 name="password"
-                disabled={isLoading} // ✅ [추가] 요청 중 입력 잠금(선택)
+                disabled={isLoading} // ✅ 요청 중 입력 잠금(선택)
               />
 
               <button className="auth-btn" type="submit" disabled={isLoading}>
                 {isLoading ? "문을 여는 중..." : "로그인하기"}
               </button>
 
-              {/* ✅ [추가] alert 대신 카드 내부 메시지 */}
+              {/* =========================================================
+                  ✅ [추가] 소셜 로그인 버튼 영역
+                  - 일반 로그인과 구분되도록 버튼을 아래에 배치
+                  ========================================================= */}
+              <div style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="auth-btn"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? "처리 중..." : "Google 로그인"}
+                </button>
+              </div>
+
+              {/* ✅ alert 대신 카드 내부 메시지 */}
               <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
               <div className="auth-row">
@@ -227,7 +271,7 @@ export default function Login() {
                     type="checkbox"
                     checked={saveId}
                     onChange={(e) => setSaveId(e.target.checked)}
-                    disabled={isLoading} // ✅ (선택) 요청 중 체크 변경 방지
+                    disabled={isLoading} // ✅ 요청 중 체크 변경 방지(선택)
                   />
                   <span>아이디 저장</span>
                 </label>
