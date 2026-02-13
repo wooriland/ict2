@@ -6,7 +6,7 @@ import "../../assets/CSS/Auth.css";
 import bg from "../../assets/images/background.png";
 
 import AuthSidePanels from "../../components/AuthSidePanels";
-import AuthMessage from "../../components/AuthMessage"; // ✅ [추가] 카드 메시지 통일
+import AuthMessage from "../../components/AuthMessage";
 import { URL } from "../../config/constants";
 
 export default function FindPw() {
@@ -24,9 +24,8 @@ export default function FindPw() {
   // ✅ 상태
   // =========================
   const [verified, setVerified] = useState(false); // ✅ username+email 검증 성공 여부
-  const [loading, setLoading] = useState(false);   // ✅ 중복 클릭 방지
+  const [loading, setLoading] = useState(false); // ✅ 중복 클릭 방지
 
-  // ✅ [변경] msg 문자열 -> 카드 메시지 객체로 통일
   // type: "success" | "error" | "info"
   const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
 
@@ -35,19 +34,18 @@ export default function FindPw() {
   // =========================
   const handleVerify = async (e) => {
     e.preventDefault();
-
-    // ✅ 요청 중이면 무시(연타 방지)
     if (loading) return;
 
-    const username = usernameRef.current?.value?.trim() || "";
-    const email = emailRef.current?.value?.trim() || "";
+    // ✅ 입력값 정리(공백 제거 + 이메일 소문자)
+    const username = (usernameRef.current?.value || "").trim();
+    const email = (emailRef.current?.value || "").trim().toLowerCase();
 
-    // ✅ 입력값 검증: alert -> 카드 메시지
+    // ✅ 입력값 검증
     if (!username || !email) {
       setMsg({
         type: "error",
         title: "🧱 아직 정보가 부족해요",
-        desc: "아이디(집 주소)와 이메일(연락처)을 모두 입력해야 본인 확인이 가능합니다.",
+        desc: "아이디(username)와 이메일(email)을 모두 입력해야 본인 확인이 가능합니다.",
       });
       return;
     }
@@ -63,17 +61,27 @@ export default function FindPw() {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      if (res.data?.verified) {
-        // ✅ 검증 성공 → 2단계 폼 열기
+      /**
+       * ✅ 백엔드 응답 구조(네가 캡처한 그대로)
+       * { ok:true, code:"OK", message:null, data:{ verified:true } }
+       *
+       * ❌ res.data.verified  (undefined)
+       * ✅ res.data.data.verified
+       */
+      const isVerified = res?.data?.data?.verified === true;
+
+      if (isVerified) {
         setVerified(true);
 
         setMsg({
-          type: "info",
-          title: "🛠 문을 고칠 수 있게 되었습니다",
+          type: "success",
+          title: "✅ 사용자 확인 완료",
           desc: "확인 완료! 이제 새 비밀번호(새 열쇠)를 입력해 주세요.",
         });
+
+        // ✅ UX: 새 비밀번호 입력칸으로 포커스 이동
+        setTimeout(() => newPwRef.current?.focus(), 0);
       } else {
-        // ✅ 검증 실패
         setVerified(false);
         setMsg({
           type: "error",
@@ -89,7 +97,7 @@ export default function FindPw() {
         err?.response?.data?.message ||
         "서버 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 
-      // ✅ 통신/서버 에러도 카드 메시지로
+      setVerified(false);
       setMsg({
         type: "error",
         title: "📡 통신이 불안정합니다",
@@ -105,11 +113,8 @@ export default function FindPw() {
   // =========================
   const handleReset = async (e) => {
     e.preventDefault();
-
-    // ✅ 요청 중이면 무시(연타 방지)
     if (loading) return;
 
-    // ✅ verified 상태가 아니면 재설정 못 하게 안전장치(UX)
     if (!verified) {
       setMsg({
         type: "error",
@@ -119,8 +124,9 @@ export default function FindPw() {
       return;
     }
 
-    const username = usernameRef.current?.value?.trim() || "";
-    const email = emailRef.current?.value?.trim() || "";
+    // ✅ 입력값 정리(공백 제거 + 이메일 소문자)
+    const username = (usernameRef.current?.value || "").trim();
+    const email = (emailRef.current?.value || "").trim().toLowerCase();
 
     const newPassword = newPwRef.current?.value || "";
     const newPassword2 = newPw2Ref.current?.value || "";
@@ -155,13 +161,16 @@ export default function FindPw() {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      // ✅ 성공 메시지 + 2초 후 로그인으로 이동
+      // ✅ 백엔드가 ApiResponse를 쓰는 경우 message는 res.data.message 또는 res.data.data.message일 수 있음
+      const serverMsg =
+        res?.data?.message ||
+        res?.data?.data?.message ||
+        "비밀번호가 재설정되었습니다.";
+
       setMsg({
         type: "success",
         title: "🔐 새 열쇠가 만들어졌습니다!",
-        desc: (res.data?.message
-          ? `${res.data.message} 2초 뒤 로그인 화면으로 이동합니다.`
-          : "비밀번호가 재설정되었습니다. 2초 뒤 로그인 화면으로 이동합니다."),
+        desc: `${serverMsg} 2초 뒤 로그인 화면으로 이동합니다.`,
       });
 
       setTimeout(() => {
@@ -170,9 +179,9 @@ export default function FindPw() {
     } catch (err) {
       console.error(err);
 
-      // ✅ 백엔드에서 ApiResponse로 내려주는 경우
       const serverMsg =
         err?.response?.data?.message ||
+        err?.response?.data?.data?.message ||
         "비밀번호 재설정 실패(사용자 정보 불일치 또는 서버 오류).";
 
       setMsg({
@@ -188,7 +197,6 @@ export default function FindPw() {
   return (
     <div className="auth-page">
       <div className="auth-grid">
-        {/* ✅ 좌/우 통짜 패널 + story.mp4 */}
         <AuthSidePanels
           left={{
             title: "비밀번호 도움말",
@@ -242,20 +250,16 @@ export default function FindPw() {
             </p>
           </section>
 
-          {/* ✅ verified 되면 아래 입력들이 추가되므로 카드가 자동으로 늘어남 */}
           <section className="auth-card auth-card--find" aria-label="find password form">
-            {/* ✅ verified에 따라 submit 핸들러를 바꿔서 "한 카드 안에서" 단계적으로 진행 */}
             <form onSubmit={verified ? handleReset : handleVerify}>
-              {/* =========================
-                  ✅ 1단계: 사용자 확인 입력
-                 ========================= */}
+              {/* ✅ 1단계: 사용자 확인 */}
               <input
                 ref={usernameRef}
                 className="auth-input auth-input--login"
                 type="text"
                 placeholder="아이디(username)"
                 autoComplete="username"
-                disabled={verified || loading} // ✅ verified 되면 잠금
+                disabled={verified || loading}
               />
 
               <input
@@ -267,25 +271,17 @@ export default function FindPw() {
                 disabled={verified || loading}
               />
 
-              {/* ✅ [변경] 안내 메시지: AuthMessage로 통일 */}
+              {/* ✅ 메시지 */}
               <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
-              {/* =========================
-                  ✅ 1단계 버튼 (verify)
-                 ========================= */}
+              {/* ✅ 1단계 버튼 */}
               {!verified && (
-                <button
-                  className="auth-btn auth-btn--login"
-                  type="submit"
-                  disabled={loading}
-                >
+                <button className="auth-btn auth-btn--login" type="submit" disabled={loading}>
                   {loading ? "확인 중..." : "사용자 확인"}
                 </button>
               )}
 
-              {/* =========================
-                  ✅ 2단계: 새 비밀번호 입력 (verified 후 노출)
-                 ========================= */}
+              {/* ✅ 2단계: 새 비밀번호 입력 */}
               {verified && (
                 <>
                   <div className="auth-divider" />
@@ -308,11 +304,7 @@ export default function FindPw() {
                     disabled={loading}
                   />
 
-                  <button
-                    className="auth-btn auth-btn--login"
-                    type="submit"
-                    disabled={loading}
-                  >
+                  <button className="auth-btn auth-btn--login" type="submit" disabled={loading}>
                     {loading ? "재설정 중..." : "비밀번호 재설정"}
                   </button>
                 </>

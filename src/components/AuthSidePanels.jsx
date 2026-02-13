@@ -2,10 +2,9 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useRef } from "react";
 
 /**
- * ✅ Auth 페이지 공통 좌/우 패널 (최종 + video auto play)
+ * ✅ Auth 페이지 공통 좌/우 패널 (최종 + video auto play + ✅ 영상 위/아래 카피 지원)
  *
  * - 좌/우 동일 너비
- * - 상/하 분리 없이 "통짜 패널"
  * - 왼쪽: 텍스트(안내/공지/도움말/링크)
  * - 오른쪽: 미디어(이미지/동영상)
  *
@@ -15,20 +14,18 @@ import { useEffect, useMemo, useRef } from "react";
  * - muted + playsInline로 브라우저 자동재생 정책 통과
  * - 화면에서 벗어나면 pause(원하면 제거 가능)
  *
+ * ✅ 추가: 영상 카피(문구) 위치 분리
+ * - right.mediaTopText    : 영상 위(overlay)
+ * - right.mediaBottomText : 영상 아래(영상 박스 바깥)
+ *
  * 사용 예:
  * <AuthSidePanels
- *   left={{
- *     title: "도움말",
- *     text: "아래 메뉴를 이용하세요.",
- *     links: [{ to: "/help", label: "고객센터" }],
- *     notices: ["공지 1"],
- *     tips: ["팁 1"]
- *   }}
  *   right={{
  *     title: "가이드 영상",
- *     text: "아이디 찾기 과정을 영상으로 안내합니다.",
+ *     text: "story.mp4가 화면에 보이면 자동 재생됩니다.",
  *     videoSrc: "/video/story.mp4",
- *     // videoControls: true, // 필요하면 켜기
+ *     mediaTopText: "모든 집은, 작은 결심에서 시작됩니다.\n그 시작을 함께합니다.",
+ *     mediaBottomText: "혼자 고민하던 시간이...\n그리고 그 시작은, 당신의 집으로 이어집니다.",
  *   }}
  * />
  */
@@ -70,7 +67,6 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
           }
         } catch (e) {
           // 브라우저 정책으로 autoplay가 막힐 수 있음
-          // (이 경우 muted/playsInline은 이미 켜져 있으니 대부분 통과)
           console.log("video autoplay blocked:", e);
         }
       },
@@ -146,24 +142,51 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
       <aside className="auth-right" aria-label="right side panel">
         <div className="auth-side">
           <div className="auth-side-panel">
-            {/* 상단 텍스트 영역 */}
+            {/* 상단 텍스트 영역(패널 기본 텍스트) */}
             <div className="auth-side-panel__body">
               <h3 className="auth-side-title">{right.title || "미디어"}</h3>
               {right.text && <p className="auth-side-text">{right.text}</p>}
             </div>
 
-            {/* 미디어 영역 (통짜) */}
+            {/* 미디어 영역 */}
             <div className="auth-media">
               {/* 이미지 */}
               {right.imageSrc && (
                 <div className="auth-media-box">
+                  {/* ✅ 이미지 위 오버레이 문구(옵션) */}
+                  {right.mediaTopText && (
+                    <div
+                      className="auth-media-overlay auth-media-overlay--top"
+                      style={{ whiteSpace: "pre-line" }}
+                    >
+                      {right.mediaTopText}
+                    </div>
+                  )}
+
                   <img className="auth-media-img" src={right.imageSrc} alt="" />
+
+                  {/* ✅ 이미지 아래 문구(옵션) */}
+                  {right.mediaBottomText && (
+                    <div className="auth-media-caption" style={{ whiteSpace: "pre-line" }}>
+                      {right.mediaBottomText}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 동영상 */}
               {right.videoSrc && (
                 <div className="auth-media-box">
+                  {/* ✅ 영상 위 오버레이 문구(옵션) */}
+                  {right.mediaTopText && (
+                    <div
+                      className="auth-media-overlay auth-media-overlay--top"
+                      style={{ whiteSpace: "pre-line" }}
+                    >
+                      {right.mediaTopText}
+                    </div>
+                  )}
+
                   <video
                     ref={videoRef}
                     className="auth-media-video"
@@ -175,6 +198,13 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
                     preload="metadata"
                     controls={videoOptions.controls}
                   />
+
+                  {/* ✅ 영상 아래 문구(옵션) */}
+                  {right.mediaBottomText && (
+                    <div className="auth-media-caption" style={{ whiteSpace: "pre-line" }}>
+                      {right.mediaBottomText}
+                    </div>
+                  )}
                 </div>
               )}
 

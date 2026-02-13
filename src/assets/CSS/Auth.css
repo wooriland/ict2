@@ -377,7 +377,7 @@ body {
   background: #fff;
 }
 
-/* ✅ [추가] disabled 입력 UX (verify 후 잠김, loading 중 잠김) */
+/* ✅ disabled 입력 UX (verify 후 잠김, loading 중 잠김) */
 .auth-input:disabled {
   background: rgba(241, 245, 249, 0.9); /* 살짝 회색 */
   color: rgba(51, 65, 85, 0.85);
@@ -392,8 +392,26 @@ body {
   font-size: 13px;
   font-weight: 900;
   margin: -6px 2px 10px;
+  understanding: 0;
   line-height: 1.2;
 }
+
+/* =========================================================
+   ✅ (P1 추가) 실시간 중복 체크 힌트 (Signup.jsx)
+   - status: ok / dup / checking / invalid
+   ========================================================= */
+.auth-hint {
+  margin: -6px 2px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  opacity: 0.95;
+}
+
+.auth-hint.ok { color: #1f7a3f; }
+.auth-hint.dup { color: #e53935; }
+.auth-hint.checking { color: #475569; }
+.auth-hint.invalid { color: #e53935; }
 
 .auth-btn {
   width: 100%;
@@ -411,7 +429,7 @@ body {
   filter: brightness(0.98);
 }
 
-/* ✅ [추가] disabled 버튼 UX (loading 중 중복 클릭 방지) */
+/* ✅ disabled 버튼 UX (loading 중 중복 클릭 방지) */
 .auth-btn:disabled {
   opacity: 0.75;
   cursor: not-allowed;
@@ -419,7 +437,7 @@ body {
 }
 
 /* =========================================================
-   ✅ [추가] 카드 내부 메시지 박스 (alert 대체)
+   ✅ 카드 내부 메시지 박스 (alert 대체)
    - type: success / error / info
    ========================================================= */
 .auth-message {
@@ -445,19 +463,19 @@ body {
   opacity: 0.9;
 }
 
-/* ✅ 성공: 내집마련 - 입주/열쇠 */
+/* ✅ 성공 */
 .auth-message.success {
   border-color: rgba(16,185,129,0.38);
   background: rgba(236, 253, 245, 0.92);
 }
 
-/* ✅ 실패: 내집마련 - 잠금/주소 없음 */
+/* ✅ 실패 */
 .auth-message.error {
   border-color: rgba(239,68,68,0.38);
   background: rgba(254, 242, 242, 0.92);
 }
 
-/* ✅ 안내/진행: */
+/* ✅ 안내/진행 */
 .auth-message.info {
   border-color: rgba(59,130,246,0.30);
   background: rgba(239, 246, 255, 0.92);
@@ -537,7 +555,7 @@ body {
   font-weight: 800;
 }
 
-/* ✅ [추가] FindPw에서 안내 메시지를 예쁘게 보여줄 클래스 */
+/* ✅ FindPw에서 안내 메시지를 예쁘게 보여줄 클래스 */
 .auth-help-text {
   margin: -2px 2px 10px; /* input 아래에 자연스럽게 붙게 */
   font-size: 14px;
@@ -546,11 +564,66 @@ body {
   color: #374151;
 }
 
-/* ✅ [추가] verified 후 폼이 늘어날 때 구분선 */
+/* ✅ verified 후 폼이 늘어날 때 구분선 */
 .auth-divider {
   height: 1px;
   background: rgba(120,130,150,0.25);
   margin: 14px 0;
+}
+
+/* =========================================================
+   ✅ (P1 추가) 회원가입 이메일 인증 UI 보강
+   - Signup.jsx에서 이메일 인증 줄(row)이 여러 개 생기므로,
+     기본 auth-row(margin-top:14px)가 너무 커 보일 수 있음.
+   ========================================================= */
+
+/* ✅ 인증 영역 전용: 더 촘촘한 row */
+.auth-row--compact {
+  margin-top: 8px;
+  justify-content: flex-start;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ✅ 인증 버튼(2개 나란히)일 때 글씨가 너무 커 보이면 이 클래스를 붙여 사용 */
+.auth-btn--mini {
+  height: 52px;
+  font-size: 16px;
+  font-weight: 900;
+  border-radius: 10px;
+}
+
+/* ✅ 인증 타이머 텍스트 */
+.auth-timer {
+  font-size: 12px;
+  font-weight: 900;
+  color: #475569;
+  opacity: 0.95;
+  white-space: nowrap;
+}
+
+/* ✅ 인증 힌트(메일 발송/성공/만료 안내) */
+.auth-input-hint {
+  margin: -4px 2px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  color: #334155;
+  opacity: 0.9;
+}
+
+/* ✅ 인증 완료 뱃지 느낌(선택) */
+.auth-badge-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(16,185,129,0.30);
+  background: rgba(236, 253, 245, 0.92);
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 /* 모바일 */
@@ -558,5 +631,11 @@ body {
   .auth-row{
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  /* ✅ (P1) 모바일에서는 인증 버튼 2개를 세로로 */
+  .auth-row--compact {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
