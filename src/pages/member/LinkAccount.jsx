@@ -1,31 +1,23 @@
 // ✅ 파일: src/pages/member/LinkAccount.jsx
 //
-// ✅ P3 소셜 확장 + P0 안정화 스타일로 정리한 최종본
-//
-// 핵심 개선점
-// 1) axios 직접 호출 → ✅ apiFetch(apiClient)로 통일 (401/403/409 처리 정책 일관성 확보)
-// 2) 상수 하드코딩("FLASH_TOAST", "LINK_REQUIRED") 제거 → ✅ constants(FLASH_KEY/FLASH) 사용
-// 3) 토큰 저장 정책 반영:
-//    - 이 화면에서 발급받는 JWT는 "최종 로그인 토큰"이므로
-//      ✅ keepLogin 선택이 없으면 localStorage 저장(소셜 로그인 흐름과 동일하게 단순화)
-//      (원하면: Login.jsx의 keepLogin 설정을 sessionStorage에 저장해 두고 여기서 읽어 분기 가능)
-// 4) displayName(카카오 닉네임/구글 이름) 대응:
-//    - OAuth2Redirect가 sessionStorage("OAUTH2_DISPLAY_NAME")에 넣어줬다면
-//      LinkAccount에서 안내 문구/토스트에 활용 가능
-//    - 없어도 정상 동작 (null-safe)
-// 5) socialTempToken 소스 우선순위:
-//    - queryParam > localStorage
-// 6) StrictMode 중복 실행 방지(useRef)
-// 7) 버튼/입력 disabled 조건 강화(토큰 없을 때/로딩 중)
-//
-// ⚠️ 주의
-// - apiFetch는 기본적으로 BASE_URL(API_BASE)을 붙여 호출할 수 있으니
-//   여기서는 "PATH(상대경로)"를 쓰는 방식이 가장 깔끔함.
-// - constants.js에 PATH.OAUTH2_LINK_PASSWORD / PATH.OAUTH2_OTP_SEND / PATH.OAUTH2_OTP_VERIFY / PATH.OAUTH2_CONTINUE_NEW 가 이미 있음.
+// ✅ P3 소셜 확장 + P0 안정화 스타일(내집마련 Auth 톤) 최종본
+// - 가운데 캔버스(배경) + 카드 UI로 통일
+// - Auth.css(auth-card/auth-input/auth-btn/auth-row/auth-divider) 규격 사용
+// - apiFetch(apiClient) 통일 + constants(FLASH_KEY/FLASH/PATH) 사용
+// - 토큰 저장: 최종 JWT는 localStorage 저장(소셜 흐름과 동일)
+// - displayName(OAUTH2_DISPLAY_NAME) 활용(없어도 정상)
+// - socialTempToken: queryParam > localStorage
+// - StrictMode 중복 실행 방지(useRef)
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+
+import "../../assets/CSS/Auth.css";
+import bg from "../../assets/images/background.png";
+
 import AuthSidePanels from "../../components/AuthSidePanels";
+import AuthMessage from "../../components/AuthMessage";
+
 import { apiFetch } from "../../api/apiClient";
 import { ROUTE, STORAGE_KEY, FLASH_KEY, FLASH, PATH } from "../../config/constants";
 
@@ -57,6 +49,9 @@ export default function LinkAccount() {
   // ✅ (선택) 소셜 표시이름(카카오 닉네임/구글 이름) - UI 안내용
   const [displayName, setDisplayName] = useState("");
 
+  // ✅ 카드 메시지(지속 안내)
+  const [msg, setMsg] = useState({ type: "info", title: "", desc: "" });
+
   // =========================================================
   // ✅ 초기 진입 처리
   // =========================================================
@@ -70,7 +65,6 @@ export default function LinkAccount() {
     const token = q || saved || "";
 
     if (!token) {
-      // ✅ 토큰이 없으면 연결할 수 없으니 로그인 화면으로 복귀
       toast.warn("연결 정보가 없습니다. 다시 로그인해주세요.", {
         toastId: "link-no-token",
       });
@@ -83,7 +77,6 @@ export default function LinkAccount() {
     localStorage.setItem(STORAGE_KEY.SOCIAL_TEMP_TOKEN, token);
 
     // 2) (선택) displayName 읽기
-    // - OAuth2Redirect.jsx에서 sessionStorage.setItem("OAUTH2_DISPLAY_NAME", displayName) 해두었다면 여기서 사용 가능
     const dn = sessionStorage.getItem("OAUTH2_DISPLAY_NAME") || "";
     setDisplayName(dn);
 
@@ -91,20 +84,36 @@ export default function LinkAccount() {
     const flash = sessionStorage.getItem(FLASH_KEY.TOAST);
 
     if (flash) {
-      // ✅ 한 번만 노출해야 하므로 여기서 제거
       sessionStorage.removeItem(FLASH_KEY.TOAST);
 
       if (flash === FLASH.LINK_REQUIRED) {
-        toast.info(
-          dn
-            ? `${dn} 계정으로 로그인하셨습니다. 기존 계정과 연결을 진행해주세요.`
-            : "계정 연결이 필요합니다. 아래 방법으로 연결해주세요.",
-          { toastId: "link-required-page" }
-        );
+        const text = dn
+          ? `${dn} 계정으로 로그인하셨습니다. 기존 계정과 연결을 진행해주세요.`
+          : "계정 연결이 필요합니다. 아래 방법으로 연결해주세요.";
+
+        toast.info(text, { toastId: "link-required-page" });
+        setMsg({
+          type: "info",
+          title: "🔗 계정 연결이 필요합니다",
+          desc: text,
+        });
       } else {
-        // ✅ 예외/누락 케이스: 기본 안내
         toast.info("계정 연결을 진행해주세요.", { toastId: "link-generic" });
+        setMsg({
+          type: "info",
+          title: "계정 연결",
+          desc: "아래 방법 중 하나로 계정을 연결해 주세요.",
+        });
       }
+    } else {
+      // flash가 없어도 기본 안내(UX)
+      setMsg({
+        type: "info",
+        title: "계정 연결",
+        desc:
+          "소셜 로그인은 성공했지만 기존 계정과 연결이 필요합니다.\n" +
+          "아래 방법 중 하나를 선택해 진행해 주세요.",
+      });
     }
   }, [location.search, navigate, params]);
 
@@ -129,10 +138,6 @@ export default function LinkAccount() {
    * ✅ 최종 로그인 토큰 저장 정책
    * - 이 화면은 "연결 완료/신규 생성 완료"로 최종 JWT를 받는 지점.
    * - 소셜 로그인 흐름(OAuth2Redirect)과 동일하게 localStorage에 저장(단순).
-   *
-   * (원하면 개선)
-   * - Login.jsx의 keepLogin 값을 sessionStorage에 저장해뒀다가 여기서 읽고
-   *   local/session 분기 저장도 가능.
    */
   const saveFinalToken = (token) => {
     localStorage.setItem(STORAGE_KEY.ACCESS_TOKEN, token);
@@ -142,6 +147,14 @@ export default function LinkAccount() {
     sessionStorage.removeItem(STORAGE_KEY.ACCESS_TOKEN);
     sessionStorage.removeItem(STORAGE_KEY.SOCIAL_TEMP_TOKEN);
   };
+
+  const pickToken = (res) =>
+    res?.token ||
+    res?.accessToken ||
+    res?.jwt ||
+    res?.data?.token ||
+    res?.data?.accessToken ||
+    res?.data?.jwt;
 
   // =========================================================
   // ✅ 1) 아이디/비번으로 연결
@@ -155,36 +168,37 @@ export default function LinkAccount() {
 
     if (!username || !password) {
       toast.warn("아이디/비밀번호를 입력하세요.", { toastId: "link-pw-empty" });
+      setMsg({
+        type: "error",
+        title: "🧱 입력이 비어있어요",
+        desc: "아이디와 비밀번호를 모두 입력해 주세요.",
+      });
       return;
     }
 
     try {
       setLoading(true);
+      setMsg({ type: "info", title: "연결 중...", desc: "아이디/비밀번호로 계정을 연결하고 있어요." });
 
-      // ✅ POST /api/oauth2/link/password
-      // - apiFetch는 URL(절대)도 되고 PATH(상대)도 되는데, 여기서는 PATH 권장
       const res = await apiFetch(PATH.OAUTH2_LINK_PASSWORD, {
         method: "POST",
         body: { socialTempToken, username, password },
       });
 
-      // ✅ 토큰 추출(백엔드 응답 구조 변화 대비)
-      const token =
-        res?.token ||
-        res?.accessToken ||
-        res?.jwt ||
-        res?.data?.token ||
-        res?.data?.accessToken ||
-        res?.data?.jwt;
+      const token = pickToken(res);
 
       if (!token) {
         toast.error("연결은 되었지만 토큰이 없습니다. 백엔드 응답을 확인하세요.", {
           toastId: "link-pw-no-token",
         });
+        setMsg({
+          type: "error",
+          title: "⚠️ 토큰 누락",
+          desc: "연결 응답에 토큰이 없습니다. 백엔드 응답 구조를 확인해 주세요.",
+        });
         return;
       }
 
-      // ✅ 최종 토큰 저장
       saveFinalToken(token);
 
       // ✅ 메인에서 "연결 완료" 토스트 1회
@@ -192,12 +206,17 @@ export default function LinkAccount() {
 
       navigate(ROUTE.HOME, { replace: true });
     } catch (err) {
-      // ✅ apiFetch는 err.message / err.code / err.status를 제공할 수 있음
-      const msg =
+      const text =
         err?.data?.message ||
         err?.message ||
         "연결 실패(아이디/비밀번호). 입력 값을 확인하세요.";
-      toast.error(msg, { toastId: "link-pw-fail" });
+
+      toast.error(text, { toastId: "link-pw-fail" });
+      setMsg({
+        type: "error",
+        title: "🔒 연결 실패",
+        desc: text,
+      });
 
       console.error("LINK PW ERROR:", err);
     } finally {
@@ -214,23 +233,45 @@ export default function LinkAccount() {
     const email = emailRef.current?.value?.trim() || "";
     if (!email) {
       toast.warn("이메일을 입력하세요.", { toastId: "otp-email-empty" });
+      setMsg({
+        type: "error",
+        title: "📮 이메일이 필요해요",
+        desc: "기존 가입 계정의 이메일을 입력해 주세요.",
+      });
       return;
     }
 
     try {
       setLoading(true);
+      setMsg({
+        type: "info",
+        title: "📨 인증코드 발송 중...",
+        desc: "이메일로 인증코드를 보내고 있어요.",
+      });
 
-      // ✅ POST /api/oauth2/link/otp/send
       await apiFetch(PATH.OAUTH2_OTP_SEND, {
         method: "POST",
         body: { socialTempToken, email },
       });
 
       toast.success("인증코드를 이메일로 보냈습니다.", { toastId: "otp-sent" });
+      setMsg({
+        type: "success",
+        title: "📨 인증코드 발송 완료",
+        desc: "메일함(스팸함 포함)을 확인하고 6자리 코드를 입력해 주세요.",
+      });
+
+      setTimeout(() => otpRef.current?.focus(), 0);
     } catch (err) {
-      const msg =
+      const text =
         err?.data?.message || err?.message || "OTP 발송 실패. 잠시 후 다시 시도해주세요.";
-      toast.error(msg, { toastId: "otp-send-fail" });
+
+      toast.error(text, { toastId: "otp-send-fail" });
+      setMsg({
+        type: "error",
+        title: "📨 발송 실패",
+        desc: text,
+      });
 
       console.error("OTP SEND ERROR:", err);
     } finally {
@@ -249,43 +290,56 @@ export default function LinkAccount() {
 
     if (!email || !code) {
       toast.warn("이메일/인증코드를 입력하세요.", { toastId: "otp-empty" });
+      setMsg({
+        type: "error",
+        title: "🔢 입력이 비어있어요",
+        desc: "이메일과 인증코드를 모두 입력해 주세요.",
+      });
       return;
     }
 
     try {
       setLoading(true);
+      setMsg({
+        type: "info",
+        title: "✅ 인증 확인 중...",
+        desc: "인증코드를 확인하고 있어요.",
+      });
 
-      // ✅ POST /api/oauth2/link/otp/verify
       const res = await apiFetch(PATH.OAUTH2_OTP_VERIFY, {
         method: "POST",
         body: { socialTempToken, email, code },
       });
 
-      const token =
-        res?.token ||
-        res?.accessToken ||
-        res?.jwt ||
-        res?.data?.token ||
-        res?.data?.accessToken ||
-        res?.data?.jwt;
+      const token = pickToken(res);
 
       if (!token) {
         toast.error("토큰이 없습니다. 백엔드 응답 확인 필요", {
           toastId: "otp-no-token",
+        });
+        setMsg({
+          type: "error",
+          title: "⚠️ 토큰 누락",
+          desc: "인증은 되었지만 토큰이 없습니다. 백엔드 응답 구조를 확인해 주세요.",
         });
         return;
       }
 
       saveFinalToken(token);
 
-      // ✅ 메인에서 "연결 완료" 토스트 1회
       sessionStorage.setItem(FLASH_KEY.TOAST, FLASH.LINK_OK);
 
       navigate(ROUTE.HOME, { replace: true });
     } catch (err) {
-      const msg =
+      const text =
         err?.data?.message || err?.message || "OTP 인증 실패. 코드를 확인해주세요.";
-      toast.error(msg, { toastId: "otp-verify-fail" });
+
+      toast.error(text, { toastId: "otp-verify-fail" });
+      setMsg({
+        type: "error",
+        title: "❌ 인증 실패",
+        desc: text,
+      });
 
       console.error("OTP VERIFY ERROR:", err);
     } finally {
@@ -301,40 +355,47 @@ export default function LinkAccount() {
 
     try {
       setLoading(true);
+      setMsg({
+        type: "info",
+        title: "새 계정 생성 중...",
+        desc: "소셜 계정으로 새 계정을 생성하고 있어요.",
+      });
 
-      // ✅ POST /api/oauth2/continue-new
-      // - 기존 설계: 서버가 body에 socialTempToken을 받는 형태
       const res = await apiFetch(PATH.OAUTH2_CONTINUE_NEW, {
         method: "POST",
         body: { socialTempToken },
       });
 
-      const token =
-        res?.token ||
-        res?.accessToken ||
-        res?.jwt ||
-        res?.data?.token ||
-        res?.data?.accessToken ||
-        res?.data?.jwt;
+      const token = pickToken(res);
 
       if (!token) {
         toast.error("토큰이 없습니다. 백엔드 응답 확인 필요", {
           toastId: "continue-new-no-token",
+        });
+        setMsg({
+          type: "error",
+          title: "⚠️ 토큰 누락",
+          desc: "응답에 토큰이 없습니다. 백엔드 응답 구조를 확인해 주세요.",
         });
         return;
       }
 
       saveFinalToken(token);
 
-      // ✅ 새 계정이든 기존 계정이든, "소셜 로그인 완료" 토스트는 Home에서 1회만
-      // - 기존 값(GOOGLE_LOGIN_OK) 호환 유지
+      // ✅ Home에서 1회 환영 토스트 처리(기존 호환 유지)
       sessionStorage.setItem(FLASH_KEY.TOAST, FLASH.GOOGLE_LOGIN_OK);
 
       navigate(ROUTE.HOME, { replace: true });
     } catch (err) {
-      const msg =
+      const text =
         err?.data?.message || err?.message || "새 계정 진행 실패. 잠시 후 다시 시도해주세요.";
-      toast.error(msg, { toastId: "continue-new-fail" });
+
+      toast.error(text, { toastId: "continue-new-fail" });
+      setMsg({
+        type: "error",
+        title: "🚧 새 계정 생성 실패",
+        desc: text,
+      });
 
       console.error("CONTINUE NEW ERROR:", err);
     } finally {
@@ -349,122 +410,193 @@ export default function LinkAccount() {
 
   return (
     <div className="auth-page">
-      <div className="auth-grid">
+      <div className="auth-grid" style={{ whiteSpace: "pre-line" }}>
         <AuthSidePanels
           left={{
-            title: "계정 연결이 필요합니다",
+            title: "계정 연결 안내",
             text:
-              (displayName
-                ? `• ${displayName} 계정으로 로그인하셨습니다.\n\n`
-                : "") +
-              "소셜 로그인은 성공했지만,\n" +
-              "기존 계정과 연결이 필요한 상태입니다.\n\n" +
+              (displayName ? `• ${displayName} 계정으로 로그인하셨습니다.\n\n` : "") +
+              "소셜 로그인은 성공했지만,\n기존 계정과 연결이 필요한 상태입니다.\n\n" +
               "방법 1) 아이디/비밀번호로 연결\n" +
               "방법 2) 이메일 인증(OTP)으로 연결\n\n" +
-              "연결이 완료되면 자동으로 로그인됩니다.",
+              "처음 방문이라면 ‘새 계정으로 계속’을 선택할 수 있습니다.",
             links: [
               { to: ROUTE.LOGIN, label: "로그인으로" },
               { to: "/signup", label: "회원가입" },
               { to: "/help", label: "고객센터" },
             ],
+            notices: [
+              "이메일 OTP는 ‘기존 가입 계정의 이메일’로만 동작합니다.",
+              "소셜 이메일과 다를 수 있습니다(특히 카카오).",
+            ],
+            tips: [
+              "연결이 완료되면 자동으로 로그인됩니다.",
+              "토큰이 없으면 다시 로그인부터 진행해야 합니다.",
+            ],
           }}
           right={{
-            title: "계정 연결",
+            title: "연결 방법 선택",
             text:
-              "아래 방법 중 하나를 선택하세요.\n" +
-              "• 이미 가입한 계정이 있다면 연결을 추천합니다.\n" +
-              "• 처음이라면 '새 계정으로 계속'을 선택할 수 있습니다.",
+              "이미 가입한 계정이 있다면 ‘연결’을 추천합니다.\n" +
+              "처음이라면 ‘새 계정으로 계속’으로 진행할 수 있습니다.",
+            mediaTopText: "연결은 ‘한 번’만 하면 됩니다.\n이후부터는 소셜로 바로 로그인!",
+            mediaBottomText: "안전한 연결을 위해\n토큰/세션을 정리하며 진행합니다.",
           }}
         />
 
-        <div className="auth-form">
-          <h2>계정 연결</h2>
+        <main className="auth-canvas">
+          <img className="auth-bg-img" src={bg} alt="" />
 
-          {/* =========================
-              1) 아이디/비밀번호 연결
-             ========================= */}
-          <form onSubmit={handleLinkWithPassword}>
-            <h3>아이디/비밀번호로 연결</h3>
-            <input
-              ref={usernameRef}
-              placeholder="아이디"
-              disabled={disableAll}
-              autoComplete="username"
-            />
-            <input
-              ref={passwordRef}
-              type="password"
-              placeholder="비밀번호"
-              disabled={disableAll}
-              autoComplete="current-password"
-            />
-            <button type="submit" disabled={disableAll}>
-              {loading ? "처리 중..." : "연결하기"}
-            </button>
-          </form>
+          <header className="auth-header">
+            <Link to={ROUTE.LOGIN} className="auth-logo">
+              <span className="auth-logo-mark">🏠</span>
+              <div className="auth-logo-text">
+                <div className="auth-logo-sub">중간프로젝트</div>
+                <div className="auth-logo-main">내집마련</div>
+              </div>
+            </Link>
 
-          <hr style={{ margin: "16px 0" }} />
+            <nav className="auth-header-links">
+              <Link to="/signup">회원가입</Link>
+              <span className="auth-header-sep">|</span>
+              <Link to="/help">고객센터</Link>
+            </nav>
+          </header>
 
-          {/* =========================
-              2) OTP 연결
-             ========================= */}
-          <div>
-            <h3>이메일 OTP로 연결</h3>
+          <section className="auth-hero">
+            <h1 className="auth-hero-title">계정 연결</h1>
+            <p className="auth-hero-sub">
+              {displayName ? `${displayName} 계정으로 로그인하셨어요. 연결을 완료해 주세요.` : "연결을 완료해 주세요."}
+            </p>
+          </section>
 
-            <input
-              ref={emailRef}
-              placeholder="이메일"
-              disabled={disableAll}
-              autoComplete="email"
-            />
+          <section className="auth-card" aria-label="link account card">
+            {/* ✅ 상단 안내 카드 메시지 */}
+            <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
-            <button type="button" onClick={handleSendOtp} disabled={disableAll}>
-              {loading ? "처리 중..." : "인증코드 보내기"}
-            </button>
+            {/* =========================
+                1) 아이디/비밀번호 연결
+               ========================= */}
+            <div style={{ marginTop: 14 }}>
+              <h3 className="auth-card__title" style={{ marginBottom: 6 }}>
+                아이디/비밀번호로 연결
+              </h3>
+              <p className="auth-card__desc">
+                기존 계정의 아이디/비밀번호로 연결하면, 이후부터 소셜로 바로 로그인됩니다.
+              </p>
 
-            <div style={{ marginTop: 8 }}>
+              <form onSubmit={handleLinkWithPassword}>
+                <input
+                  ref={usernameRef}
+                  className="auth-input"
+                  placeholder="아이디 (집 주소)"
+                  disabled={disableAll}
+                  autoComplete="username"
+                />
+                <input
+                  ref={passwordRef}
+                  className="auth-input"
+                  type="password"
+                  placeholder="비밀번호 (열쇠)"
+                  disabled={disableAll}
+                  autoComplete="current-password"
+                />
+
+                <button className="auth-btn" type="submit" disabled={disableAll}>
+                  {loading ? "연결 중..." : "연결하기"}
+                </button>
+              </form>
+            </div>
+
+            <div className="auth-divider" />
+
+            {/* =========================
+                2) OTP 연결
+               ========================= */}
+            <div>
+              <h3 className="auth-card__title" style={{ marginBottom: 6 }}>
+                이메일 OTP로 연결
+              </h3>
+              <p className="auth-card__desc">
+                기존 가입 계정의 이메일로 인증코드를 받아 연결할 수 있습니다.
+              </p>
+
               <input
-                ref={otpRef}
-                placeholder="인증코드 입력"
+                ref={emailRef}
+                className="auth-input"
+                placeholder="이메일 (기존 가입 계정)"
                 disabled={disableAll}
-                inputMode="numeric"
+                autoComplete="email"
               />
-              <button
-                type="button"
-                onClick={handleVerifyOtp}
-                disabled={disableAll}
-              >
-                {loading ? "처리 중..." : "확인"}
+
+              <div className="auth-row auth-row--compact">
+                <button
+                  type="button"
+                  className="auth-btn auth-btn--mini"
+                  onClick={handleSendOtp}
+                  disabled={disableAll}
+                  style={{ flex: 1 }}
+                >
+                  {loading ? "처리 중..." : "인증코드 보내기"}
+                </button>
+              </div>
+
+              <div className="auth-row auth-row--compact">
+                <input
+                  ref={otpRef}
+                  className="auth-input"
+                  placeholder="인증코드 6자리"
+                  disabled={disableAll}
+                  inputMode="numeric"
+                  style={{ flex: 1, marginBottom: 0 }}
+                />
+                <button
+                  type="button"
+                  className="auth-btn auth-btn--mini"
+                  onClick={handleVerifyOtp}
+                  disabled={disableAll}
+                  style={{ flex: 1 }}
+                >
+                  {loading ? "처리 중..." : "인증 확인"}
+                </button>
+              </div>
+
+              <div className="auth-input-hint">
+                • 이메일은 “기존 가입 계정의 이메일”을 입력해야 합니다.{"\n"}
+                • 소셜 이메일과 다르면 서버가 거부할 수 있습니다.
+              </div>
+            </div>
+
+            <div className="auth-divider" />
+
+            {/* =========================
+                3) 새 계정으로 계속
+               ========================= */}
+            <div>
+              <h3 className="auth-card__title" style={{ marginBottom: 6 }}>
+                새 계정으로 계속
+              </h3>
+              <p className="auth-card__desc">
+                처음 방문이라면 새 계정을 생성하고 바로 시작할 수 있습니다.
+              </p>
+
+              <button className="auth-btn" type="button" onClick={handleContinueAsNew} disabled={disableAll}>
+                {loading ? "처리 중..." : "새 계정으로 계속"}
               </button>
             </div>
 
-            <p style={{ marginTop: 8, opacity: 0.8, fontSize: 13 }}>
-              • 이메일은 "기존 가입 계정의 이메일"을 입력해야 합니다.
-              <br />
-              • 소셜 이메일과 다르면(구글에서 제공되는 경우) 서버가 거부할 수 있습니다.
-            </p>
-          </div>
+            <div className="auth-row" style={{ justifyContent: "flex-start" }}>
+              <div className="auth-links">
+                <Link to={ROUTE.LOGIN}>로그인으로 돌아가기</Link>
+              </div>
+            </div>
 
-          <hr style={{ margin: "16px 0" }} />
-
-          {/* =========================
-              3) 새 계정으로 계속
-             ========================= */}
-          <button type="button" onClick={handleContinueAsNew} disabled={disableAll}>
-            {loading ? "처리 중..." : "새 계정으로 계속"}
-          </button>
-
-          <p style={{ marginTop: 12 }}>
-            <Link to={ROUTE.LOGIN}>로그인으로 돌아가기</Link>
-          </p>
-
-          {/* ✅ 디버깅 도움(로컬 개발 단계에서만)
-              - 토큰이 세팅되어야 버튼이 활성화됨
-              - 운영에서는 제거하거나 숨겨도 됨 */}
-          <p style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-            socialTempToken: {socialTempToken ? "✅ 있음" : "❌ 없음"}
-          </p>
-        </div>
+            {/* ✅ 디버깅(로컬) */}
+            <div className="auth-input-hint" style={{ marginTop: 10, opacity: 0.75 }}>
+              socialTempToken: {socialTempToken ? "✅ 있음" : "❌ 없음"}
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   );

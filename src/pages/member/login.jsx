@@ -1,32 +1,13 @@
 // ✅ 파일: src/pages/member/login.jsx
-// UX 업그레이드 버전 (✅ 아이디 저장 / ✅ 로그인 유지 분리 적용 + ✅ Google/Kakao 소셜 로그인 확장)
-// - alert 완전 제거 → AuthMessage 카드로만 안내
-// - 로그인 실패(401)는 페이지 유지 + 헤더/스토리지 흔적 0
-// - 세션 만료(다른 API 401) 시 FLASH_TOAST를 읽어 카드로 1회 안내
-// - ✅ keepLogin(로그인 유지) ON → localStorage에 인증 저장
-// - ✅ keepLogin(로그인 유지) OFF → sessionStorage에 인증 저장
-// - ✅ saveId(아이디 저장) ON → localStorage.savedUsername에 username만 저장(인증 아님)
-//
-// ✅ (P3) 소셜 로그인 추가 포인트
-// - Google 로그인 버튼 유지
-// - ✅ Kakao 로그인 버튼 추가
-// - OAuth2 성공/실패/세션만료 등은 OAuth2Redirect.jsx가 처리하고,
-//   Login.jsx는 "FLASH_TOAST"에 따라 1회 메시지 카드만 보여준다.
-//
-// ✅ (추가 개선) "Google"에만 묶이지 않도록 토스트 문구를 '소셜 로그인' 중심으로 안전하게 구성
-// - 기존 FLASH.GOOGLE_LOGIN_OK를 그대로 쓰되,
-//   displayName/email은 Home에서 /me 조회 또는 sessionStorage(OAUTH2_DISPLAY_NAME)로 보완 가능
+// ✅ 내집마련 UI/UX 업그레이드 버전 (기능 로직 유지 + UI 톤 통일)
+// - 소셜 버튼을 "Primary(일반 로그인)" / "Social(서브 버튼)"로 분리
+// - inline style 최소화(필요한 건 class로)
+// - 메시지/체크박스/링크 영역 정렬 개선
+// - Naver 안내(whiteSpace:pre-line)는 AuthMessage/오버레이 쪽에서 처리되므로 유지
 
 import { useEffect, useRef, useState } from "react";
 import { useUsersContext } from "../../context/useUsersContext";
-import {
-  AUTH_KEY,
-  URL,
-  USERS,
-  STORAGE_KEY,
-  FLASH_KEY,
-  FLASH,
-} from "../../config/constants";
+import { AUTH_KEY, URL, USERS, STORAGE_KEY, FLASH_KEY, FLASH, ROUTE } from "../../config/constants";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import "../../assets/CSS/Auth.css";
@@ -62,11 +43,9 @@ export default function Login() {
    * - 아이디 저장(savedUsername)은 사용자 편의니까 여기서 지우지 않음
    */
   const clearAuth = () => {
-    // username(인증 부수정보)
     localStorage.removeItem(AUTH_KEY.USERNAME);
     sessionStorage.removeItem(AUTH_KEY.USERNAME);
 
-    // token(인증 핵심)
     localStorage.removeItem(STORAGE_KEY.ACCESS_TOKEN);
     sessionStorage.removeItem(STORAGE_KEY.ACCESS_TOKEN);
 
@@ -80,38 +59,38 @@ export default function Login() {
   // =========================================================
   // ✅ 소셜 로그인 시작 버튼들
   // =========================================================
-
-  /**
-   * ✅ Google OAuth2 로그인 시작
-   * - 백엔드: /oauth2/authorization/google 로 이동
-   */
-  const handleGoogleLogin = () => {
+  const startSocial = (targetUrl, providerLabel = "소셜", descOverride) => {
     if (isLoading) return;
 
     setMsg({
       type: "info",
-      title: "🔄 Google 로그인으로 이동합니다",
-      desc: "잠시 후 Google 인증 페이지로 이동합니다.",
+      title: `${providerLabel} 로그인으로 이동합니다`,
+      desc: descOverride || "잠시 후 인증 페이지로 이동합니다.",
     });
 
-    window.location.href = URL.OAUTH2_GOOGLE_AUTH;
+    window.location.href = targetUrl;
   };
 
+  /** ✅ Google OAuth2 로그인 시작 */
+  const handleGoogleLogin = () => startSocial(URL.OAUTH2_GOOGLE_AUTH, "Google");
+
+  /** ✅ Kakao OAuth2 로그인 시작 */
+  const handleKakaoLogin = () => startSocial(URL.OAUTH2_KAKAO_AUTH, "Kakao");
+
   /**
-   * ✅ Kakao OAuth2 로그인 시작 (P3 추가)
-   * - 백엔드: /oauth2/authorization/kakao 로 이동
+   * ✅ Naver OAuth2 로그인 시작 (P3-2)
+   * - (선택) confirm 페이지 임시값 정리
    */
-  const handleKakaoLogin = () => {
-    if (isLoading) return;
+  const handleNaverLogin = () => {
+    sessionStorage.removeItem("oauthProvider");
+    sessionStorage.removeItem("oauthDisplayName");
+    sessionStorage.removeItem("oauthEmail");
 
-    setMsg({
-      type: "info",
-      title: "🔄 Kakao 로그인으로 이동합니다",
-      desc: "잠시 후 Kakao 인증 페이지로 이동합니다.",
-    });
-
-    // ✅ constants.js에 URL.OAUTH2_KAKAO_AUTH 추가되어 있어야 함
-    window.location.href = URL.OAUTH2_KAKAO_AUTH;
+    startSocial(
+      URL.OAUTH2_NAVER_AUTH,
+      "Naver",
+      "계정 확인을 위해 ‘확인 페이지’를 한 번 더 거칩니다.\n필요하면 네이버 로그인/동의 화면이 다시 표시될 수 있습니다."
+    );
   };
 
   // =========================================================
@@ -126,64 +105,50 @@ export default function Login() {
 
       setMsg({
         type: "info",
-        title: "📌 저장된 집 주소가 있습니다",
-        desc: "아이디가 자동으로 입력되었습니다. 열쇠(비밀번호)만 입력해 주세요.",
+        title: "저장된 아이디가 있습니다",
+        desc: "아이디가 자동으로 입력되었습니다. 비밀번호만 입력해 주세요.",
       });
     }
 
-    // 2) flash toast(세션 만료 등) → 카드 메시지로 1회 표시
+    // 2) flash toast(세션 만료/연결 필요/실패 등) → 카드 메시지로 1회 표시
     const flash = sessionStorage.getItem(FLASH_KEY.TOAST);
-    if (flash) {
-      sessionStorage.removeItem(FLASH_KEY.TOAST);
+    if (!flash) return;
 
-      /**
-       * ✅ 여기의 메시지 목적:
-       * - "세션 만료/무효" 또는 "소셜 연결 필요" 등
-       * - Login 페이지에서 설명 카드 1회로만 보여주기
-       *
-       * ⚠️ 실제 소셜 로그인 성공 토스트는 보통 Home에서 1회 보여주는 게 자연스럽다.
-       * - OAuth2Redirect.jsx가 HOME으로 보내면서 FLASH를 심어두면
-       *   Home에서 1회 토스트를 띄울 수 있음.
-       * - 그래도 Login이 먼저 열리는 시나리오(예: 실패)에서는 여기서 안내.
-       */
-      if (flash === FLASH.SESSION_EXPIRED) {
-        setMsg({
-          type: "error",
-          title: "⏳ 세션이 만료되었습니다",
-          desc: "안전하게 로그아웃되었습니다. 다시 로그인해 주세요.",
-        });
-      } else if (flash === FLASH.SESSION_INVALID) {
-        setMsg({
-          type: "error",
-          title: "🧩 인증 정보가 유효하지 않습니다",
-          desc: "토큰이 무효화되어 로그아웃되었습니다. 다시 로그인해 주세요.",
-        });
-      } else if (flash === FLASH.LINK_REQUIRED) {
-        setMsg({
-          type: "info",
-          title: "🔗 계정 연결이 필요합니다",
-          desc: "소셜 로그인 후 기존 계정과 연결을 진행해 주세요.",
-        });
-      } else if (flash === FLASH.GOOGLE_LOGIN_OK || flash === FLASH.SOCIAL_LOGIN_OK) {
-        // ✅ 기존 키(GOOGLE_LOGIN_OK)를 유지하면서도 "소셜 로그인 완료"로 안전하게 표시
-        setMsg({
-          type: "success",
-          title: "✅ 소셜 로그인 완료",
-          desc: "계정 정보를 확인하는 중입니다.",
-        });
-      } else if (flash === FLASH.OAUTH2_FALLBACK) {
-        setMsg({
-          type: "error",
-          title: "⚠️ 로그인 처리가 중단되었습니다",
-          desc: "잠시 후 다시 시도해 주세요.",
-        });
-      } else {
-        setMsg({
-          type: "info",
-          title: "안내",
-          desc: "다시 로그인해 주세요.",
-        });
-      }
+    // ✅ Login 페이지에서는 "성공" 플래시는 소비하지 않는다.
+    if (flash === FLASH.SOCIAL_LOGIN_OK || flash === FLASH.GOOGLE_LOGIN_OK) return;
+
+    sessionStorage.removeItem(FLASH_KEY.TOAST);
+
+    if (flash === FLASH.SESSION_EXPIRED) {
+      setMsg({
+        type: "error",
+        title: "세션이 만료되었습니다",
+        desc: "안전하게 로그아웃되었습니다. 다시 로그인해 주세요.",
+      });
+    } else if (flash === FLASH.SESSION_INVALID) {
+      setMsg({
+        type: "error",
+        title: "인증 정보가 유효하지 않습니다",
+        desc: "토큰이 무효화되어 로그아웃되었습니다. 다시 로그인해 주세요.",
+      });
+    } else if (flash === FLASH.LINK_REQUIRED) {
+      setMsg({
+        type: "info",
+        title: "계정 연결이 필요합니다",
+        desc: "소셜 로그인 후 기존 계정과 연결을 진행해 주세요.",
+      });
+    } else if (flash === FLASH.OAUTH2_FALLBACK) {
+      setMsg({
+        type: "error",
+        title: "로그인 처리가 중단되었습니다",
+        desc: "잠시 후 다시 시도해 주세요.",
+      });
+    } else {
+      setMsg({
+        type: "info",
+        title: "안내",
+        desc: "다시 로그인해 주세요.",
+      });
     }
   }, []);
 
@@ -200,8 +165,8 @@ export default function Login() {
     if (!username || !password) {
       setMsg({
         type: "error",
-        title: "🧱 입력이 비어있어요",
-        desc: "아이디(집 주소)와 비밀번호(열쇠)를 모두 입력해 주세요.",
+        title: "입력이 비어있어요",
+        desc: "아이디와 비밀번호를 모두 입력해 주세요.",
       });
       return;
     }
@@ -215,18 +180,16 @@ export default function Login() {
         body: { username, password },
       });
 
-      // ✅ 서버가 200 + {ok:false} 형태로 실패를 줄 수도 있으니 방어
       if (data?.ok === false) {
         clearAuth();
         setMsg({
           type: "error",
-          title: "🔒 로그인 실패",
+          title: "로그인 실패",
           desc: data?.message || "아이디 또는 비밀번호가 일치하지 않습니다.",
         });
         return;
       }
 
-      // ✅ 토큰 추출 (백엔드 응답 변화 대비)
       const token =
         data?.token ||
         data?.accessToken ||
@@ -239,7 +202,7 @@ export default function Login() {
         clearAuth();
         setMsg({
           type: "error",
-          title: "⚠️ 로그인 응답이 불완전합니다",
+          title: "로그인 응답이 불완전합니다",
           desc: "서버가 토큰을 내려주지 않았습니다. 백엔드 LoginResponse를 확인해 주세요.",
         });
         return;
@@ -257,11 +220,9 @@ export default function Login() {
       const storage = keepLogin ? localStorage : sessionStorage;
       const other = keepLogin ? sessionStorage : localStorage;
 
-      // ✅ 인증 정보 저장(선택된 저장소에만)
       storage.setItem(STORAGE_KEY.ACCESS_TOKEN, token);
       storage.setItem(AUTH_KEY.USERNAME, username);
 
-      // ✅ 반대 저장소 찌꺼기 제거
       other.removeItem(STORAGE_KEY.ACCESS_TOKEN);
       other.removeItem(AUTH_KEY.USERNAME);
 
@@ -269,42 +230,63 @@ export default function Login() {
       storage.setItem(AUTH_KEY.TOKEN, token);
       other.removeItem(AUTH_KEY.TOKEN);
 
-      // ✅ 전역 상태 반영
       dispatch({ type: USERS.LOGIN, isAuthenticated: username });
 
-      setMsg({
-        type: "success",
-        title: "🔑 로그인 성공!",
-        desc: "내 집으로 이동합니다.",
-      });
-
-      const from = location.state?.from?.pathname || "/";
-
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 600);
+      const from = location.state?.from?.pathname || ROUTE.HOME;
+      navigate(from, { replace: true });
     } catch (err) {
       clearAuth();
 
-      const text = err?.message || "로그인 중 오류가 발생했습니다.";
       const status = err?.status;
+      const payload = err?.data || err?.body || err?.response?.data || err?.responseBody || null;
+      const code = payload?.code || err?.code;
+      const remainingSeconds = payload?.remainingSeconds ?? payload?.remainSeconds;
+
+      if (status === 429) {
+        if (code === "ACCOUNT_LOCKED") {
+          const sec = Number(remainingSeconds ?? 0);
+          setMsg({
+            type: "error",
+            title: "계정이 잠금 상태입니다",
+            desc: sec > 0 ? `잠금 상태입니다. ${sec}초 후 다시 시도하세요.` : "잠금 상태입니다. 잠시 후 다시 시도하세요.",
+          });
+          return;
+        }
+
+        if (code === "RATE_LIMIT") {
+          setMsg({
+            type: "error",
+            title: "요청이 너무 많습니다",
+            desc: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+          });
+          return;
+        }
+
+        setMsg({
+          type: "error",
+          title: "요청 제한이 걸렸습니다",
+          desc: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+        });
+        return;
+      }
 
       if (status === 401) {
         setMsg({
           type: "error",
-          title: "🔒 로그인 실패",
+          title: "로그인 실패",
           desc: "아이디 또는 비밀번호가 일치하지 않습니다.",
         });
       } else if (status === 404) {
         setMsg({
           type: "error",
-          title: "🧭 API 경로를 찾을 수 없습니다",
+          title: "API 경로를 찾을 수 없습니다",
           desc: "URL.AUTH_LOGIN 또는 백엔드 라우팅을 확인해 주세요.",
         });
       } else {
+        const text = err?.message || payload?.message || "로그인 중 오류가 발생했습니다.";
         setMsg({
           type: "error",
-          title: "📡 통신 오류",
+          title: "통신 오류",
           desc: text,
         });
       }
@@ -320,6 +302,7 @@ export default function Login() {
   // =========================================================
   return (
     <div className="auth-page">
+      {/* ✅ desc에서 개행을 쓰니까 wrapper에 pre-line 적용 */}
       <div className="auth-grid" style={{ whiteSpace: "pre-line" }}>
         <AuthSidePanels
           left={{
@@ -328,6 +311,7 @@ export default function Login() {
               "• 일반 로그인: 아이디/비밀번호로 로그인합니다.\n" +
               "• Google 로그인: 구글 계정으로 로그인 후, 필요하면 기존 계정과 연결합니다.\n" +
               "• Kakao 로그인: 카카오 계정으로 로그인 후, 필요하면 기존 계정과 연결합니다.\n" +
+              "• Naver 로그인: 네이버 계정으로 로그인 후, 확인 페이지를 한 번 더 거칩니다.\n" +
               "• 연결이 필요한 경우 ‘계정 연결’ 화면으로 자동 이동됩니다.",
             links: [
               { to: "/help", label: "고객센터" },
@@ -340,6 +324,8 @@ export default function Login() {
               "일반 로그인은 Spring 로그인 API 기준으로 검사합니다.",
               "소셜 로그인은 OAuth2 인증 후 자동으로 처리됩니다.",
               "카카오 계정은 이메일 제공이 없을 수 있어 닉네임 기반으로 안내가 나올 수 있습니다.",
+              "네이버 로그인은 force=1로 재로그인/재동의를 최대한 유도합니다.",
+              "네이버는 자동 통과를 줄이기 위해 ‘확인 페이지’를 1회 거치도록 설계했습니다.",
             ],
             tips: [
               "로그인 후 게시판(/bbs) 및 사진(/photo) 이용이 가능합니다.",
@@ -352,13 +338,10 @@ export default function Login() {
             text: "story.mp4가 화면에 보이면 자동 재생됩니다.",
             videoSrc: "/video/story.mp4",
             videoControls: false,
-
-            // ✅ 영상 위(overlay)
             mediaTopText: "모든 집은, 작은 결심에서 시작됩니다.\n그 시작을 함께합니다.",
-
-            // ✅ 영상 아래(caption)
             mediaBottomText:
               "혼자 고민하던 시간이,\n함께하는 시작으로 바뀌는 순간입니다.\n그리고 그 시작은, 당신의 집으로 이어집니다.",
+            footer: "💡 팁: 소셜 로그인 후 연결이 필요하면 자동으로 안내 화면으로 이동합니다.",
           }}
         />
 
@@ -383,16 +366,17 @@ export default function Login() {
 
           <section className="auth-hero auth-hero--login">
             <h1 className="auth-hero-title">로그인</h1>
-            <p className="auth-hero-sub">내 집마련의 꿈, 여기서 로그인하고 시작하세요!</p>
+            <p className="auth-hero-sub">내 집마련의 꿈, 여기서 시작하세요</p>
           </section>
 
           <section className="auth-card auth-card--login" aria-label="login form">
+            {/* ✅ "일반 로그인"을 중심 CTA로 */}
             <form onSubmit={handleLogin}>
               <input
                 ref={usernameRef}
                 className="auth-input"
                 type="text"
-                placeholder="아이디 (집 주소)"
+                placeholder="아이디"
                 autoComplete="username"
                 name="username"
                 disabled={isLoading}
@@ -401,42 +385,63 @@ export default function Login() {
                 ref={passwordRef}
                 className="auth-input"
                 type="password"
-                placeholder="비밀번호 (열쇠)"
+                placeholder="비밀번호"
                 autoComplete="current-password"
                 name="password"
                 disabled={isLoading}
               />
 
               <button className="auth-btn" type="submit" disabled={isLoading}>
-                {isLoading ? "문을 여는 중..." : "로그인하기"}
+                {isLoading ? "로그인 중..." : "로그인하기"}
               </button>
 
-              {/* ✅ 소셜 로그인 버튼 영역 */}
-              <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-                <button
-                  type="button"
-                  className="auth-btn"
-                  onClick={handleGoogleLogin}
-                  disabled={isLoading}
-                  style={{ flex: 1 }}
-                >
-                  {isLoading ? "처리 중..." : "Google 로그인"}
-                </button>
+              {/* ✅ 소셜 로그인: 서브 버튼 그룹 */}
+              <div className="auth-social">
+                <div className="auth-social__title">소셜로 빠르게 시작하기</div>
 
-                <button
-                  type="button"
-                  className="auth-btn"
-                  onClick={handleKakaoLogin}
-                  disabled={isLoading}
-                  style={{ flex: 1 }}
-                >
-                  {isLoading ? "처리 중..." : "Kakao 로그인"}
-                </button>
+                <div className="auth-social__grid">
+                  <button
+                    type="button"
+                    className="auth-social-btn"
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    aria-label="Google 로그인"
+                  >
+                    <span className="auth-social-ico" aria-hidden="true">G</span>
+                    <span>Google</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="auth-social-btn"
+                    onClick={handleKakaoLogin}
+                    disabled={isLoading}
+                    aria-label="Kakao 로그인"
+                  >
+                    <span className="auth-social-ico" aria-hidden="true">K</span>
+                    <span>Kakao</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="auth-social-btn"
+                    onClick={handleNaverLogin}
+                    disabled={isLoading}
+                    aria-label="Naver 로그인"
+                  >
+                    <span className="auth-social-ico" aria-hidden="true">N</span>
+                    <span>Naver</span>
+                  </button>
+                </div>
+
+                <div className="auth-social__hint">
+                  ※ 소셜 로그인 후, 연결이 필요하면 ‘계정 연결’ 화면으로 안내됩니다.
+                </div>
               </div>
 
               <AuthMessage type={msg.type} title={msg.title} desc={msg.desc} />
 
-              <div className="auth-row" style={{ alignItems: "center", gap: 14 }}>
+              <div className="auth-row auth-row--actions">
                 {/* ✅ 아이디 저장(편의) */}
                 <label className="auth-check">
                   <input

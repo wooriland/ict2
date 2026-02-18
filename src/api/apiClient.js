@@ -183,11 +183,9 @@ function isAuthLoginRequest(path, method) {
 
 /** ✅ 서버 응답에서 message/code 최대한 뽑기 */
 function extractServerMessage(data) {
-  return (
-    (typeof data === "object" && data && (data.message || data.error)) ||
-    (typeof data === "string" && data) ||
-    ""
-  );
+  if (typeof data === "object" && data) return data.message || data.error || "";
+  if (typeof data === "string") return data;
+  return "";
 }
 
 /** ✅ 서버 응답에서 code 뽑기 (ApiResponse 기준) */
@@ -210,6 +208,14 @@ function pickSessionFlash(code) {
   }
   // 그 외 401(미로그인/권한 등)
   return FLASH.OAUTH2_FALLBACK;
+}
+
+/** ✅ Retry-After 헤더(초 단위) 파싱 (있으면 UX에 활용 가능) */
+function parseRetryAfterSeconds(res) {
+  const v = res?.headers?.get?.("Retry-After");
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 // =========================================================
@@ -269,7 +275,7 @@ export async function apiFetch(
     if (err?.name === "AbortError") {
       throw createApiError(
         "요청 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.",
-        HTTP_STATUS?.BAD_REQUEST ? 408 : 408,
+        408,
         { code: "REQ_TIMEOUT" }
       );
     }
@@ -286,6 +292,28 @@ export async function apiFetch(
 
   const serverMsg = extractServerMessage(data);
   const serverCode = extractServerCode(data);
+
+  // =========================================================
+  // ✅ 429 처리 (P4: 잠금/레이트리밋)
+  // =========================================================
+  // - Login.jsx(또는 다른 폼)에서 status===429 + err.code로 UX 분기 가능
+  // - 서버가 remainingSeconds를 주면 안내에 활용
+  // - Retry-After 헤더가 있으면 보조로 활용 가능(서버가 remainingSeconds 안 줄 때)
+  if (res.status === (HTTP_STATUS?.TOO_MANY_REQUESTS || 429)) {
+    const retryAfterSec = parseRetryAfterSeconds(res);
+
+    // ✅ 서버가 code를 안 줄 수도 있으니, data에 retryAfter를 보조로 실어줌
+    const enriched =
+      data && typeof data === "object"
+        ? { ...data, retryAfterSec }
+        : { message: serverMsg, retryAfterSec };
+
+    throw createApiError(
+      serverMsg || "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+      429,
+      enriched
+    );
+  }
 
   // =========================================================
   // ✅ 401 처리 (P0: 만료/무효 분리)
@@ -325,7 +353,6 @@ export async function apiFetch(
     // ✅ 403은 보통 "권한 없음"
     // - 세션을 무조건 날리면 UX가 거칠어짐
     // - 다만 서버가 토큰 문제라고 명시한 경우만(만료/무효) 로그아웃 처리
-
     if (serverCode === "AUTH_INVALID_TOKEN" || serverCode === "AUTH_EXPIRED_TOKEN") {
       clearAuthStorage();
       setFlashToast(pickSessionFlash(serverCode));

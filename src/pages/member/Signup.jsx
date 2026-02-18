@@ -171,7 +171,6 @@ export default function Signup() {
   // ✅ (P1) 아이디 실시간 중복 체크 (디바운스)
   // =========================================================
   useEffect(() => {
-    // 타이머 정리
     if (usernameTimerRef.current) clearTimeout(usernameTimerRef.current);
 
     const username = (usernameValue || "").trim();
@@ -194,16 +193,11 @@ export default function Signup() {
     usernameTimerRef.current = setTimeout(async () => {
       try {
         const data = await getJson(CHECK_USERNAME_PATH, { username });
-
         const available = data?.data?.available === true;
 
-        if (available) {
-          setUsernameCheck({ status: "ok", msg: "사용 가능한 아이디입니다." });
-        } else {
-          setUsernameCheck({ status: "dup", msg: "이미 사용 중인 아이디입니다." });
-        }
+        if (available) setUsernameCheck({ status: "ok", msg: "사용 가능한 아이디입니다." });
+        else setUsernameCheck({ status: "dup", msg: "이미 사용 중인 아이디입니다." });
       } catch {
-        // 백엔드 미구현/오류 시: 가입 자체는 서버에서 최종 검증되지만 UX는 에러로 표시
         setUsernameCheck({ status: "error", msg: "중복 확인 실패(서버 오류)" });
       }
     }, 500);
@@ -236,14 +230,10 @@ export default function Signup() {
     emailTimerRef.current = setTimeout(async () => {
       try {
         const data = await getJson(CHECK_EMAIL_PATH, { email: email.toLowerCase() });
-
         const available = data?.data?.available === true;
 
-        if (available) {
-          setEmailCheck({ status: "ok", msg: "사용 가능한 이메일입니다." });
-        } else {
-          setEmailCheck({ status: "dup", msg: "이미 가입된 이메일입니다." });
-        }
+        if (available) setEmailCheck({ status: "ok", msg: "사용 가능한 이메일입니다." });
+        else setEmailCheck({ status: "dup", msg: "이미 가입된 이메일입니다." });
       } catch {
         setEmailCheck({ status: "error", msg: "중복 확인 실패(서버 오류)" });
       }
@@ -690,11 +680,15 @@ export default function Signup() {
 
   return (
     <div className="auth-page">
-      <div className="auth-grid">
+      <div className="auth-grid" style={{ whiteSpace: "pre-line" }}>
         <AuthSidePanels
           left={{
             title: "가입 안내",
-            text: "내집마련의 시작! 간단히 가입하고 참여하세요.",
+            text:
+              "내집마련의 시작! 간단히 가입하고 참여하세요.\n" +
+              "• 아이디/이메일은 중복 불가\n" +
+              "• 이메일 인증(필수) 완료 후 비밀번호 입력이 열립니다.\n" +
+              "• 인증코드는 5분 유효 / 30초 후 재발송 가능",
             links: [
               { to: "/help", label: "고객센터" },
               { to: "/login", label: "로그인" },
@@ -702,16 +696,14 @@ export default function Signup() {
               { to: "/find-pw", label: "비밀번호 찾기" },
             ],
             notices: [
-              "아이디는 중복 불가",
-              "이메일은 중복 불가",
-              "비밀번호는 추후 정책(길이/특수문자) 강화 가능",
-              "✅ (P1) 회원가입 전 이메일 인증 필요",
-              "✅ (P1) 입력 즉시 중복 체크(실시간)",
+              "아이디는 4~20자, 영문/숫자/_ 만 가능합니다.",
+              "이메일은 중복 불가이며, 인증이 필요합니다.",
+              "✅ 입력 즉시 중복 체크(실시간)로 UX를 개선했습니다.",
             ],
             tips: [
               "아이디/이메일이 중복이면 가입/인증 진행이 막힙니다.",
-              "이메일 인증 완료 후 비밀번호 입력란이 열립니다.",
-              "✅ 인증코드는 5분 유효 / 30초 후 재발송 가능",
+              "인증코드가 오지 않으면 스팸함을 확인하세요.",
+              "인증 완료 후 ‘가입하기’가 활성화됩니다.",
             ],
           }}
           right={{
@@ -719,6 +711,9 @@ export default function Signup() {
             text: "story.mp4가 화면에 보이면 자동 재생됩니다.",
             videoSrc: "/video/story.mp4",
             videoControls: false,
+            mediaTopText: "집은 ‘주소’로 시작되고,\n‘연락처’로 완성됩니다.",
+            mediaBottomText:
+              "이메일 인증은 안전한 내집마련을 위한\n가장 작은 잠금장치입니다.",
           }}
         />
 
@@ -760,7 +755,6 @@ export default function Signup() {
                 disabled={isLoading}
               />
 
-              {/* 서버 가입 시도 후 에러 */}
               {usernameError && <div className="auth-input-error">{usernameError}</div>}
 
               {/* ✅ 실시간 중복 체크 힌트 */}
@@ -787,11 +781,14 @@ export default function Signup() {
                 <div className={`auth-hint ${emailHintClass}`}>{emailCheck.msg}</div>
               )}
 
+              {/* ✅ 이메일 인증 상태 뱃지(선택) */}
+              {emailVerified && <div className="auth-badge-ok">✅ 이메일 인증 완료</div>}
+
               {/* ✅ 이메일 인증 버튼 / 상태 */}
-              <div className="auth-row" style={{ gap: 8, alignItems: "center" }}>
+              <div className="auth-row auth-row--compact">
                 <button
                   type="button"
-                  className="auth-btn"
+                  className="auth-btn auth-btn--mini"
                   onClick={handleSendEmailCode}
                   disabled={!canSendCode}
                   style={{ flex: 1 }}
@@ -820,13 +817,12 @@ export default function Signup() {
                     : "인증코드 보내기"}
                 </button>
 
-                <div style={{ fontSize: 12, opacity: 0.85, whiteSpace: "nowrap" }}>
-                  {expiresText}
-                </div>
+                {/* ✅ 타이머 텍스트는 클래스 통일 */}
+                <div className="auth-timer">{expiresText}</div>
               </div>
 
               {/* ✅ 인증 코드 입력 + 확인 버튼 */}
-              <div className="auth-row" style={{ gap: 8, alignItems: "center" }}>
+              <div className="auth-row auth-row--compact">
                 <input
                   ref={emailCodeRef}
                   className="auth-input"
@@ -841,11 +837,12 @@ export default function Signup() {
                     expiresInSec <= 0 ||
                     emailCheck.status !== "ok"
                   }
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, marginBottom: 0 }}
                 />
+
                 <button
                   type="button"
-                  className="auth-btn"
+                  className="auth-btn auth-btn--mini"
                   onClick={handleVerifyEmailCode}
                   disabled={!canVerifyCode}
                   style={{ flex: 1 }}
@@ -854,18 +851,13 @@ export default function Signup() {
                 </button>
               </div>
 
-              {emailVerifyHint && (
-                <div
-                  className="auth-input-hint"
-                  style={{ marginTop: 4, fontSize: 12, opacity: 0.9 }}
-                >
-                  {emailVerifyHint}
-                </div>
-              )}
+              {emailVerifyHint && <div className="auth-input-hint">{emailVerifyHint}</div>}
 
               {/* ✅ 인증 완료 전에는 비밀번호 입력칸을 보여주지 않음 */}
               {emailVerified && (
                 <>
+                  <div className="auth-divider" />
+
                   <input
                     ref={passwordRef}
                     className="auth-input"
@@ -875,6 +867,7 @@ export default function Signup() {
                     name="password"
                     disabled={isLoading}
                   />
+
                   <input
                     ref={confirmRef}
                     className="auth-input"

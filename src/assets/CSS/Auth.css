@@ -1,3 +1,12 @@
+/* =========================================================
+   ✅ MyHome Auth.css (내집마련 톤 업그레이드)
+   - 기존 구조(3컬럼/캔버스/sticky) 유지
+   - 색/그림자/버튼/링크/메시지 UX 통일
+   - (추가) AuthSidePanels 업그레이드 클래스
+   - (추가) Login.jsx 소셜 로그인 UI(auth-social*)
+   - (추가) LinkAccount.jsx 컴팩트 row input 간격 보정
+   ========================================================= */
+
 /* =========================
    ✅ Reset + body 스크롤
    ========================= */
@@ -9,7 +18,50 @@ html, body {
 body {
   overflow-y: auto;
   overflow-x: hidden;
-  background: #f6f8fb;
+
+  /* ✅ 내집마련: Warm Beige 톤 */
+  background: #f6f2ea;
+  color: #12202f;
+}
+
+/* =========================================================
+   ✅ (추가) 전역 토큰 (Auth 전용)
+   - 프로젝트 전체 토큰은 index.css에 두는 게 베스트지만,
+     Auth.css 단독 유지하려면 여기에도 둬도 됨.
+   ========================================================= */
+:root{
+  /* Brand */
+  --brand-900:#0b1b2b;   /* deep navy */
+  --brand-800:#0f2740;
+  --brand-700:#173a5e;
+
+  /* Accent */
+  --accent-600:#2f7a5a;  /* soft green */
+  --accent-500:#3a8f6a;
+
+  /* Point (기존 주황은 포인트로만) */
+  --point-600:#ff6a1f;
+  --point-500:#ff8a3d;
+
+  /* Surface */
+  --bg:#f6f2ea;
+  --card:#ffffff;
+  --line: rgba(120,130,150,0.18);
+
+  /* Text */
+  --text:#12202f;
+  --muted:#5b6775;
+
+  /* Radius & Shadow */
+  --r-xl:18px;
+  --r-lg:16px;
+  --r-md:14px;
+
+  --shadow-soft: 0 10px 30px rgba(11, 27, 43, 0.10);
+  --shadow-card: 0 12px 34px rgba(11, 27, 43, 0.14);
+
+  /* Controls */
+  --control-h: 54px;
 }
 
 /* =========================
@@ -67,6 +119,8 @@ body {
   /* ✅ 기준선 변수 */
   --hero-top: 12%;
   --card-top: calc(52% + 24px);
+
+  align-self: start;
 }
 
 .auth-bg-img {
@@ -100,23 +154,16 @@ body {
 
 /* =========================================================
    ✅ Sticky 모드(스크롤 따라오기)
-   - "전체 레이아웃"은 그대로
    - 좌/우 패널만 뷰포트 상단에 붙어서 따라옴
-   - 주의: 부모에 overflow가 걸리면 sticky가 안먹을 수 있음
    ========================================================= */
 .auth-left,
 .auth-right {
   position: sticky;
-  top: 72px;                 /* ✅ 상단 헤더/네비 고려. 필요시 56~96 */
+  top: 72px;                 /* ✅ 상단 헤더/네비 고려 */
   align-self: start;         /* ✅ sticky 안정화 */
 
-  /* ✅ 화면 안에서 통짜 패널이 유지되도록 높이 제한 */
-  height: calc(100vh - 90px); /* top + 여유 */
-}
-
-/* ✅ 가운데는 기존대로(캔버스 비율 유지) */
-.auth-canvas {
-  align-self: start;
+  /* ✅ 화면 안에서 통짜 패널 유지 */
+  height: calc(100vh - 90px);
 }
 
 /* =========================================================
@@ -129,17 +176,20 @@ body {
 /* 통짜 패널 1개 */
 .auth-side-panel {
   height: 100%;
-  min-height: 0; /* ✅ 중요: 내부 스크롤/미디어 계산 */
+  min-height: 0;
   box-sizing: border-box;
 
-  border-radius: 16px;
+  border-radius: var(--r-xl);
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(120,130,150,0.18);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
   overflow: hidden;
 
   display: flex;
   flex-direction: column;
+
+  /* ✅ 살짝 고급스러운 유리 느낌 */
+  backdrop-filter: blur(6px);
 }
 
 /* 패널 상단 텍스트 영역 */
@@ -155,28 +205,28 @@ body {
   margin: 0;
   font-size: 16px;
   font-weight: 900;
-  color: #0f172a;
+  color: var(--brand-900);
 }
 
 .auth-side-subtitle {
   margin: 0;
   font-size: 14px;
   font-weight: 900;
-  color: #0f172a;
+  color: var(--brand-900);
 }
 
 .auth-side-text {
   margin: 0;
   font-size: 14px;
   font-weight: 700;
-  color: #475569;
+  color: var(--muted);
   line-height: 1.6;
 }
 
 .auth-side-list {
   margin: 0;
   padding-left: 18px;
-  color: #475569;
+  color: var(--muted);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.6;
@@ -191,7 +241,8 @@ body {
 }
 
 .auth-side-links a {
-  color: #ff6a1f;
+  /* ✅ 포인트는 주황이 아니라, “신뢰감 있는 네이비” */
+  color: var(--brand-700);
   text-decoration: none;
 }
 
@@ -202,7 +253,7 @@ body {
 /* 구분선 */
 .auth-side-divider {
   height: 1px;
-  background: rgba(120,130,150,0.18);
+  background: var(--line);
   margin: 2px 0;
 }
 
@@ -219,13 +270,16 @@ body {
 }
 
 .auth-media-box {
-  border-radius: 14px;
+  border-radius: var(--r-md);
   overflow: hidden;
-  background: rgba(0,0,0,0.04);
+  background: rgba(11, 27, 43, 0.03);
   border: 1px solid rgba(120,130,150,0.16);
+
+  /* ✅ overlay 포지셔닝을 위해 추가 */
+  position: relative;
 }
 
-/* ✅ 이미지: 기존 유지 */
+/* ✅ 이미지 */
 .auth-media-img {
   width: 100%;
   height: 260px;
@@ -248,10 +302,10 @@ body {
    ========================================================= */
 .auth-side-card {
   padding: 18px 18px 16px;
-  border-radius: 14px;
+  border-radius: var(--r-md);
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(120,130,150,0.18);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-soft);
   color: #334155;
 }
 
@@ -275,7 +329,7 @@ body {
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: #1f2937;
+  color: var(--brand-900);
 }
 
 .auth-logo-mark { font-size: 28px; }
@@ -283,19 +337,19 @@ body {
 
 .auth-logo-sub {
   font-size: 12px;
-  color: #6b7280;
-  font-weight: 600;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .auth-logo-main {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.5px;
 }
 
 .auth-header-links {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--muted);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -304,11 +358,11 @@ body {
 .auth-header-links a {
   color: inherit;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .auth-header-links a:hover { text-decoration: underline; }
-.auth-header-sep { color: #cbd5e1; }
+.auth-header-sep { color: rgba(120,130,150,0.35); }
 
 /* =========================
    ✅ 타이틀
@@ -327,14 +381,15 @@ body {
   margin: -30px;
   font-size: 40px;
   font-weight: 900;
-  color: #374151;
+  color: var(--brand-800);
+  letter-spacing: -0.02em;
 }
 
 .auth-hero-sub {
   margin: 30px 0 0;
-  font-size: 30px;
-  font-weight: 700;
-  color: #4b5563;
+  font-size: 28px;
+  font-weight: 800;
+  color: rgba(23, 58, 94, 0.85);
 }
 
 /* =========================
@@ -351,9 +406,10 @@ body {
 
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(4px);
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.10);
+  backdrop-filter: blur(6px);
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(120,130,150,0.16);
+  box-shadow: var(--shadow-card);
 
   z-index: 10;
 }
@@ -363,7 +419,7 @@ body {
    ========================= */
 .auth-input {
   width: 100%;
-  height: 54px;
+  height: var(--control-h);
   padding: 0 16px;
 
   /* ✅ 기본 간격: input 아래 여백 */
@@ -372,27 +428,42 @@ body {
   box-sizing: border-box;
 
   border: 1px solid rgba(120,130,150,0.25);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 16px;
   background: #fff;
+  outline: none;
+  transition: border .15s ease, box-shadow .15s ease, transform .06s ease;
 }
 
-/* ✅ disabled 입력 UX (verify 후 잠김, loading 중 잠김) */
+.auth-input:focus {
+  border-color: rgba(47, 122, 90, 0.45);
+  box-shadow: 0 0 0 4px rgba(47, 122, 90, 0.12);
+}
+
+.auth-input:active {
+  transform: translateY(0.5px);
+}
+
+/* ✅ 접근성: 키보드 포커스는 더 명확하게 */
+.auth-input:focus-visible{
+  box-shadow: 0 0 0 4px rgba(47, 122, 90, 0.16);
+}
+
+/* ✅ disabled 입력 UX */
 .auth-input:disabled {
-  background: rgba(241, 245, 249, 0.9); /* 살짝 회색 */
+  background: rgba(241, 245, 249, 0.9);
   color: rgba(51, 65, 85, 0.85);
   cursor: not-allowed;
 }
 
 /* =========================================================
-   ✅ 아이디 중복/유효성 에러 메시지 (Signup.jsx에서 사용)
+   ✅ 아이디 중복/유효성 에러 메시지 (Signup.jsx)
    ========================================================= */
 .auth-input-error {
-  color: #e53935;
+  color: #b42318;
   font-size: 13px;
   font-weight: 900;
   margin: -6px 2px 10px;
-  understanding: 0;
   line-height: 1.2;
 }
 
@@ -409,29 +480,35 @@ body {
 }
 
 .auth-hint.ok { color: #1f7a3f; }
-.auth-hint.dup { color: #e53935; }
+.auth-hint.dup { color: #b42318; }
 .auth-hint.checking { color: #475569; }
-.auth-hint.invalid { color: #e53935; }
+.auth-hint.invalid { color: #b42318; }
 
+/* ✅ Primary 버튼: 내집마련(그린+네이비) */
 .auth-btn {
   width: 100%;
   height: 60px;
   border: none;
-  border-radius: 10px;
-  font-size: 22px;
+  border-radius: 12px;
+  font-size: 20px;
   font-weight: 900;
   color: #fff;
-  background: linear-gradient(180deg,#ff8a3d 0%,#ff6a1f 100%);
+  background: linear-gradient(135deg, var(--accent-600) 0%, var(--brand-700) 100%);
   cursor: pointer;
+  transition: transform .08s ease, filter .15s ease, opacity .15s ease;
 }
 
 .auth-btn:hover {
   filter: brightness(0.98);
 }
 
-/* ✅ disabled 버튼 UX (loading 중 중복 클릭 방지) */
+.auth-btn:active {
+  transform: translateY(1px);
+}
+
+/* ✅ disabled 버튼 UX */
 .auth-btn:disabled {
-  opacity: 0.75;
+  opacity: 0.70;
   cursor: not-allowed;
   filter: none;
 }
@@ -443,7 +520,7 @@ body {
 .auth-message {
   margin-top: 14px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 14px;
 
   font-size: 14px;
   line-height: 1.45;
@@ -456,28 +533,30 @@ body {
   margin: 0 0 6px;
   font-weight: 900;
   font-size: 14px;
+  color: var(--brand-900);
 }
 
 .auth-message__desc {
   margin: 0;
-  opacity: 0.9;
+  opacity: 0.92;
+  color: rgba(18, 32, 47, 0.88);
 }
 
 /* ✅ 성공 */
 .auth-message.success {
-  border-color: rgba(16,185,129,0.38);
+  border-color: rgba(16,185,129,0.35);
   background: rgba(236, 253, 245, 0.92);
 }
 
 /* ✅ 실패 */
 .auth-message.error {
-  border-color: rgba(239,68,68,0.38);
+  border-color: rgba(239,68,68,0.30);
   background: rgba(254, 242, 242, 0.92);
 }
 
 /* ✅ 안내/진행 */
 .auth-message.info {
-  border-color: rgba(59,130,246,0.30);
+  border-color: rgba(59,130,246,0.22);
   background: rgba(239, 246, 255, 0.92);
 }
 
@@ -496,7 +575,7 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #64748b;
+  color: var(--muted);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -509,17 +588,18 @@ body {
 }
 
 .auth-links a {
-  color: #64748b;
+  color: var(--muted);
   font-weight: 800;
   text-decoration: none;
 }
 
 .auth-links a:hover { text-decoration: underline; }
 
-.auth-sep { color: #cbd5e1; }
+.auth-sep { color: rgba(120,130,150,0.35); }
 
+/* ✅ “회원가입” 같은 핵심 링크만 포인트 */
 .auth-signup-link {
-  color: #ff6a1f !important;
+  color: var(--point-600) !important;
   font-weight: 900;
 }
 
@@ -529,13 +609,15 @@ body {
 .auth-card__title {
   margin: 0 0 8px;
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 900;
+  color: var(--brand-900);
 }
 
 .auth-card__desc {
   margin: 0 0 14px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 /* =========================
@@ -543,25 +625,25 @@ body {
    ========================= */
 .auth-input--login {
   height: 48px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   padding: 0 14px;
 }
 
 .auth-btn--login {
   height: 50px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 900;
 }
 
-/* ✅ FindPw에서 안내 메시지를 예쁘게 보여줄 클래스 */
+/* ✅ FindPw 안내 메시지 */
 .auth-help-text {
-  margin: -2px 2px 10px; /* input 아래에 자연스럽게 붙게 */
+  margin: -2px 2px 10px;
   font-size: 14px;
   font-weight: 800;
   line-height: 1.4;
-  color: #374151;
+  color: var(--brand-800);
 }
 
 /* ✅ verified 후 폼이 늘어날 때 구분선 */
@@ -572,12 +654,8 @@ body {
 }
 
 /* =========================================================
-   ✅ (P1 추가) 회원가입 이메일 인증 UI 보강
-   - Signup.jsx에서 이메일 인증 줄(row)이 여러 개 생기므로,
-     기본 auth-row(margin-top:14px)가 너무 커 보일 수 있음.
+   ✅ 회원가입 이메일 인증 UI 보강
    ========================================================= */
-
-/* ✅ 인증 영역 전용: 더 촘촘한 row */
 .auth-row--compact {
   margin-top: 8px;
   justify-content: flex-start;
@@ -585,34 +663,39 @@ body {
   align-items: center;
 }
 
-/* ✅ 인증 버튼(2개 나란히)일 때 글씨가 너무 커 보이면 이 클래스를 붙여 사용 */
+/* ✅ (추가) compact row 안의 input 하단 마진 제거(OTP row/LinkAccount row 깔끔) */
+.auth-row--compact .auth-input{
+  margin-bottom: 0;
+}
+
+/* ✅ 인증 버튼(미니) */
 .auth-btn--mini {
   height: 52px;
   font-size: 16px;
   font-weight: 900;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
-/* ✅ 인증 타이머 텍스트 */
+/* ✅ 타이머 */
 .auth-timer {
   font-size: 12px;
   font-weight: 900;
-  color: #475569;
+  color: var(--muted);
   opacity: 0.95;
   white-space: nowrap;
 }
 
-/* ✅ 인증 힌트(메일 발송/성공/만료 안내) */
+/* ✅ 인증 힌트 */
 .auth-input-hint {
   margin: -4px 2px 10px;
   font-size: 12px;
   font-weight: 900;
   line-height: 1.35;
-  color: #334155;
+  color: rgba(18, 32, 47, 0.86);
   opacity: 0.9;
 }
 
-/* ✅ 인증 완료 뱃지 느낌(선택) */
+/* ✅ 인증 완료 뱃지 */
 .auth-badge-ok {
   display: inline-flex;
   align-items: center;
@@ -626,6 +709,164 @@ body {
   font-weight: 900;
 }
 
+/* =========================================================
+   ✅ (추가) AuthSidePanels.jsx 업그레이드용 클래스
+   - auth-side-badge / overlay / caption / empty / foot
+   ========================================================= */
+
+/* 작은 뱃지(패널 상단) */
+.auth-side-badge{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(47,122,90,0.22);
+  background: rgba(47,122,90,0.08);
+  color: var(--brand-700);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+/* 미디어 오버레이(상단) */
+.auth-media-overlay{
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  z-index: 2;
+
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.20);
+  background: rgba(11, 27, 43, 0.50);
+  backdrop-filter: blur(6px);
+  color: rgba(255,255,255,0.95);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+/* 미디어 캡션(아래) */
+.auth-media-caption{
+  padding: 10px 12px;
+  border-top: 1px solid rgba(120,130,150,0.14);
+  color: rgba(18,32,47,0.82);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.4;
+  background: rgba(255,255,255,0.92);
+}
+
+/* 미디어 비었을 때 */
+.auth-media-empty{
+  padding: 20px;
+  text-align: center;
+  color: rgba(91,103,117,0.92);
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+/* 미디어 하단 작은 안내 */
+.auth-media-foot{
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(91,103,117,0.92);
+  font-weight: 800;
+}
+
+/* =========================================================
+   ✅ (추가) Login.jsx: 소셜 로그인 UI (auth-social*)
+   ========================================================= */
+.auth-social{
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(120,130,150,0.18);
+}
+
+.auth-social__title{
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(91,103,117,0.95);
+  margin-bottom: 10px;
+}
+
+.auth-social__grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 720px){
+  .auth-social__grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+.auth-social-btn{
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid rgba(120,130,150,0.20);
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 8px 20px rgba(11,27,43,0.06);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  font-weight: 900;
+  color: var(--brand-800);
+  cursor: pointer;
+  transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+}
+
+.auth-social-btn:hover{
+  filter: brightness(0.99);
+}
+
+.auth-social-btn:active{
+  transform: translateY(1px);
+}
+
+.auth-social-btn:disabled{
+  opacity: 0.70;
+  cursor: not-allowed;
+}
+
+/* 동그란 아이콘 뱃지 */
+.auth-social-ico{
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-600), var(--brand-700));
+}
+
+/* 하단 힌트 */
+.auth-social__hint{
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(91,103,117,0.92);
+  line-height: 1.4;
+}
+
+/* auth-row 보강(로그인 카드 하단 정렬) */
+.auth-row--actions{
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 /* 모바일 */
 @media (max-width: 520px){
   .auth-row{
@@ -633,7 +874,6 @@ body {
     align-items: flex-start;
   }
 
-  /* ✅ (P1) 모바일에서는 인증 버튼 2개를 세로로 */
   .auth-row--compact {
     flex-direction: column;
     align-items: stretch;

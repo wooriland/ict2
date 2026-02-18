@@ -12,11 +12,25 @@
 //    - API_TIMEOUT_MS (옵션)
 //
 // ===========================================================
-// ✅ (P3 수정) 소셜 로그인 확장(카카오) + 닉네임 환영 토스트
+// ✅ (P3 수정) 소셜 로그인 확장(카카오/네이버) + 닉네임 환영 토스트
 // - OAuth2Redirect에서 FLASH.GOOGLE_LOGIN_OK를 쓰지 말고
 //   ✅ FLASH.SOCIAL_LOGIN_OK 하나로 통일해서 소셜 공통 처리
 // - displayName(닉네임)은 "일회성 토스트"에만 쓰므로 sessionStorage에 임시 저장 권장
 // - 저장 키는 constants로 통일: STORAGE_KEY.OAUTH2_DISPLAY_NAME
+// - ✅ 네이버는 force=1을 붙여 재로그인/재동의를 최대한 유도
+//   (백엔드에서 force=1 감지 → auth_type=reauthenticate/reprompt 붙이는 구조)
+//
+// ===========================================================
+// ✅ (추가) 카카오 로그인 화면 "무조건" 띄우기
+// - 카카오는 기존 세션이 있으면 자동 통과가 발생할 수 있음
+// - OAuth2 Authorization 요청에 ✅ prompt=login 을 붙이면
+//   "항상 카카오 로그인 화면"을 띄우도록 유도할 수 있음
+// - 따라서 PATH.OAUTH2_KAKAO_AUTH에 ?prompt=login 을 기본으로 붙인다.
+// ===========================================================
+//
+// ✅ (P3-2 추가) 네이버 로그인 확인 페이지
+// - 네이버 로그인 성공 직후 JWT를 바로 localStorage에 저장하지 않고,
+//   sessionStorage에 "pending"으로 임시 저장 → /oauth2/confirm 에서 확정 저장
 // ===========================================================
 
 /**
@@ -30,11 +44,8 @@ export const API_BASE =
 
 /**
  * ✅ 프론트 Base (React)
- * - 카카오/구글 OAuth2 성공 후 백엔드가 redirect할 "프론트 주소"
+ * - 카카오/구글/네이버 OAuth2 성공 후 백엔드가 redirect할 "프론트 주소"
  * - 예: http://localhost:9191
- *
- * ⚠️ Vite에서 포트가 바뀔 수 있으니 env로도 열어둔다:
- * - VITE_FRONT_BASE_URL=http://localhost:9191
  */
 export const FRONT_BASE =
   import.meta.env.VITE_FRONT_BASE_URL || "http://localhost:9191";
@@ -43,8 +54,9 @@ export const FRONT_BASE =
 export const API_TIMEOUT_MS = 10000;
 
 /**
- * ✅ PATH 모음 (apiClient 권장 방식)
- * - apiClient.post(PATH.AUTH_LOGIN, payload)
+ * ===========================================================
+ * ✅ PATH (상대경로)
+ * ===========================================================
  */
 export const PATH = {
   // Auth
@@ -54,15 +66,12 @@ export const PATH = {
   AUTH_VERIFY_USER: "/api/auth/verify-user",
   AUTH_RESET_PASSWORD: "/api/auth/reset-password",
 
-  // ✅ (P1) 회원가입 이메일 인증
+  // (P1) 회원가입 이메일 인증
   EMAIL_SEND: "/api/auth/email/send",
   EMAIL_VERIFY: "/api/auth/email/verify",
-
-  // ✅ (선택) status API를 만들었을 때만 사용(안 만들면 프론트에서 호출 금지)
   EMAIL_STATUS: "/api/auth/email/status",
 
-  // ✅ (P1) 실시간 중복 체크 (username/email)
-  // - 백엔드에서 permitAll 권장(회원가입 전 단계)
+  // (P1) 실시간 중복 체크
   AUTH_CHECK_USERNAME: "/api/auth/check-username",
   AUTH_CHECK_EMAIL: "/api/auth/check-email",
 
@@ -70,141 +79,145 @@ export const PATH = {
   USERS: "/api/users",
   ME: "/api/users/me",
 
-  // OAuth2 (백엔드 시작 URL)
+  // OAuth2 시작 URL
   OAUTH2_GOOGLE_AUTH: "/oauth2/authorization/google",
-  OAUTH2_KAKAO_AUTH: "/oauth2/authorization/kakao",
-  // OAUTH2_NAVER_AUTH: "/oauth2/authorization/naver",
 
-  // OAuth2 Link Flow (백엔드 API)
+  // ✅ 카카오: 항상 로그인 화면 보여주기(자동 통과 방지)
+  // - prompt=login : 기존 카카오 세션이 있어도 로그인 화면을 다시 띄우도록 유도
+  // - 만약 나중에 "기본은 자동통과 허용, 특정 버튼만 강제"로 가고 싶으면
+  //   여기서는 /oauth2/authorization/kakao 만 두고,
+  //   Login.jsx에서 ?prompt=login 을 붙이는 방식으로 분기하면 됨.
+  OAUTH2_KAKAO_AUTH: "/oauth2/authorization/kakao?prompt=login",
+
+  // 네이버: force=1로 재로그인/재동의 유도(백엔드 resolver가 처리)
+  OAUTH2_NAVER_AUTH: "/oauth2/authorization/naver?force=1",
+
+  // OAuth2 Link Flow
   OAUTH2_LINK_PASSWORD: "/api/oauth2/link/password",
   OAUTH2_OTP_SEND: "/api/oauth2/link/otp/send",
   OAUTH2_OTP_VERIFY: "/api/oauth2/link/otp/verify",
   OAUTH2_CONTINUE_NEW: "/api/oauth2/continue-new",
+
+  // ✅ (P3-2) NAVER confirm API
+  OAUTH2_CONFIRM: "/api/oauth2/confirm",
 };
 
 /**
- * ✅ URL(절대경로) 모음 (기존 axios 코드 호환)
- * - axios.post(URL.AUTH_LOGIN, ...)
- * - window.location.href = URL.OAUTH2_GOOGLE_AUTH
+ * ===========================================================
+ * ✅ URL (절대경로)
+ * ===========================================================
  */
 export const URL = {
-  // Auth
   AUTH_SIGNUP: `${API_BASE}${PATH.AUTH_SIGNUP}`,
   AUTH_LOGIN: `${API_BASE}${PATH.AUTH_LOGIN}`,
   AUTH_FIND_USERNAME: `${API_BASE}${PATH.AUTH_FIND_USERNAME}`,
   AUTH_VERIFY_USER: `${API_BASE}${PATH.AUTH_VERIFY_USER}`,
   AUTH_RESET_PASSWORD: `${API_BASE}${PATH.AUTH_RESET_PASSWORD}`,
 
-  // ✅ (P1) 회원가입 이메일 인증
   EMAIL_SEND: `${API_BASE}${PATH.EMAIL_SEND}`,
   EMAIL_VERIFY: `${API_BASE}${PATH.EMAIL_VERIFY}`,
-
-  // ✅ (선택) status API를 "실제로 만들었을 때만" 사용 권장
   EMAIL_STATUS: `${API_BASE}${PATH.EMAIL_STATUS}`,
 
-  // ✅ (P1) 실시간 중복 체크
   AUTH_CHECK_USERNAME: `${API_BASE}${PATH.AUTH_CHECK_USERNAME}`,
   AUTH_CHECK_EMAIL: `${API_BASE}${PATH.AUTH_CHECK_EMAIL}`,
 
-  // Users
   USERS: `${API_BASE}${PATH.USERS}`,
   ME: `${API_BASE}${PATH.ME}`,
 
-  // OAuth2 (백엔드 시작 URL)
   OAUTH2_GOOGLE_AUTH: `${API_BASE}${PATH.OAUTH2_GOOGLE_AUTH}`,
   OAUTH2_KAKAO_AUTH: `${API_BASE}${PATH.OAUTH2_KAKAO_AUTH}`,
-  // OAUTH2_NAVER_AUTH: `${API_BASE}${PATH.OAUTH2_NAVER_AUTH}`,
+  OAUTH2_NAVER_AUTH: `${API_BASE}${PATH.OAUTH2_NAVER_AUTH}`,
 
-  // OAuth2 Link Flow
   OAUTH2_LINK_PASSWORD: `${API_BASE}${PATH.OAUTH2_LINK_PASSWORD}`,
   OAUTH2_OTP_SEND: `${API_BASE}${PATH.OAUTH2_OTP_SEND}`,
   OAUTH2_OTP_VERIFY: `${API_BASE}${PATH.OAUTH2_OTP_VERIFY}`,
   OAUTH2_CONTINUE_NEW: `${API_BASE}${PATH.OAUTH2_CONTINUE_NEW}`,
 
-  /**
-   * ✅ 프론트 redirect 절대 URL (백엔드 app.oauth2.redirect-base에 넣을 값)
-   * - 예: http://localhost:9191/oauth2/redirect
-   *
-   * ⚠️ API_BASE(8080)가 아니라 FRONT_BASE(9191) 기반이어야 함!
-   */
+  // ✅ (P3-2) NAVER confirm API
+  OAUTH2_CONFIRM: `${API_BASE}${PATH.OAUTH2_CONFIRM}`,
+
+  // 프론트 redirect (백엔드 redirect-base에 설정)
   FRONT_OAUTH2_REDIRECT: `${FRONT_BASE}/oauth2/redirect`,
 };
 
 /**
- * ✅ 인증 저장 키 (단일화)
- * - apiClient는 AUTH_KEY.TOKEN을 읽는다.
+ * ===========================================================
+ * ✅ 인증 키
+ * ===========================================================
  */
 export const AUTH_KEY = {
   USERNAME: "username",
   PASSWORD: "password",
-
-  // ✅ 우리 서비스 JWT 저장 키 (단일화 핵심)
-  TOKEN: "accessToken",
+  TOKEN: "accessToken", // 단일화 핵심
 };
 
 /**
- * ✅ 보관 키 모음(호환용)
- * - 토큰은 AUTH_KEY.TOKEN을 정식으로 사용
+ * ===========================================================
+ * ✅ Storage Key 모음
+ * ===========================================================
  */
 export const STORAGE_KEY = {
   ACCESS_TOKEN: AUTH_KEY.TOKEN,
 
-  // ✅ 소셜 로그인 성공 후, 연결 필요할 때 받는 임시 토큰
+  // LINK_REQUIRED용
   SOCIAL_TEMP_TOKEN: "socialTempToken",
 
-  // ✅ (P3) 소셜 표시이름(닉네임/이름) 저장 키 (선택: "연결 화면"에서 안내용으로 쓸 때)
+  // displayName 관련
   SOCIAL_DISPLAY_NAME: "socialDisplayName",
-
-  // ✅ (P3) ✅ OAuth2Redirect → Home 토스트 1회 노출용 임시 표시 이름(닉네임)
-  // - sessionStorage에 저장해서 1회 사용 후 삭제하는 흐름 권장
   OAUTH2_DISPLAY_NAME: "OAUTH2_DISPLAY_NAME",
 
-  // ✅ 호환용
+  // ✅ (P3-2) NAVER confirm "pending" 키
+  OAUTH2_PENDING_TOKEN: "OAUTH2_PENDING_TOKEN",
+  OAUTH2_PENDING_PROVIDER: "OAUTH2_PENDING_PROVIDER",
+  OAUTH2_PENDING_NAME: "OAUTH2_PENDING_NAME",
+  OAUTH2_PENDING_EMAIL: "OAUTH2_PENDING_EMAIL",
+
   USERNAME: AUTH_KEY.USERNAME,
 
-  // ✅ (P1) 아이디 저장(편의 기능) 전용 키
-  // - 로그인 상태 판단에는 절대 사용하지 말 것(AuthRoute는 token만 보게)
+  // 아이디 저장용
   SAVED_USERNAME: "savedUsername",
 };
 
-// ✅ "한 번만 보여줄 토스트" 플래그 키/값 (sessionStorage 사용 권장)
+/**
+ * ===========================================================
+ * ✅ FLASH (1회성 토스트 플래그)
+ * ===========================================================
+ */
 export const FLASH_KEY = {
   TOAST: "FLASH_TOAST",
 };
 
-// ✅ FLASH_TOAST 값들
 export const FLASH = {
-  // ⚠️ (구형 호환) 예전 홈/로직이 이 값을 참조하는 경우가 있을 수 있음
-  // - 신규 소셜 로그인 플로우에서는 SOCIAL_LOGIN_OK를 사용 권장
-  GOOGLE_LOGIN_OK: "GOOGLE_LOGIN_OK",
-
-  // ✅ (권장) 구글/카카오/네이버 공통 "소셜 로그인 성공" 토스트
+  GOOGLE_LOGIN_OK: "GOOGLE_LOGIN_OK", // 구형 호환
   SOCIAL_LOGIN_OK: "SOCIAL_LOGIN_OK",
 
   LINK_REQUIRED: "LINK_REQUIRED",
   LINK_OK: "LINK_OK",
 
-  // ✅ apiClient의 pickSessionFlash()에서 쓰는 값들 (P0 UX 품질 업)
   SESSION_EXPIRED: "SESSION_EXPIRED",
   SESSION_INVALID: "SESSION_INVALID",
 
-  // ✅ fallback
   OAUTH2_FALLBACK: "OAUTH2_FALLBACK",
 };
 
-// ✅ 라우트 문자열(오타 방지용)
+/**
+ * ===========================================================
+ * ✅ ROUTE
+ * ===========================================================
+ */
 export const ROUTE = {
   HOME: "/",
   LOGIN: "/login",
-
-  // ✅ 백엔드가 프론트로 리다이렉트 시켜줄 전용 페이지
   OAUTH2_REDIRECT: "/oauth2/redirect",
-
-  // ✅ 계정 연결 페이지
+  OAUTH2_CONFIRM: "/oauth2/confirm",
   LINK_ACCOUNT: "/link-account",
 };
 
-// ✅ (추가) axios 공통 처리에서 사용할 window 이벤트 이름 통일
+/**
+ * ===========================================================
+ * ✅ Axios/Event 관련
+ * ===========================================================
+ */
 export const AUTH_EVENT = {
   EXPIRED: "auth:expired",
   UNAUTHORIZED: "auth:unauthorized",
@@ -212,7 +225,6 @@ export const AUTH_EVENT = {
   CONFLICT: "req:conflict",
 };
 
-// ✅ (추가) HTTP status 상수 (가독성)
 export const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
@@ -221,7 +233,11 @@ export const HTTP_STATUS = {
   INTERNAL_SERVER_ERROR: 500,
 };
 
-// ✅ USERS reducer action
+/**
+ * ===========================================================
+ * ✅ Reducer Action
+ * ===========================================================
+ */
 export const USERS = {
   ALL: "all",
   LOGIN: "login",
@@ -229,7 +245,6 @@ export const USERS = {
   LIKES: "likes",
 };
 
-// ✅ BBS reducer action
 export const BBS = {
   ALL: "all",
   WRITE: "write",
@@ -238,7 +253,6 @@ export const BBS = {
   NOWPAGE: "nowpage",
 };
 
-// ✅ 🔥 BBS 페이징 설정 (List.jsx에서 사용 중)
 export const BBS_PAGING = {
   PAGESIZE: 2,
   BLOCKPAGE: 3,

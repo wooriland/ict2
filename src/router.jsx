@@ -34,6 +34,7 @@ import NotFound from "./pages/NotFound.jsx";
 
 // ✅ OAuth2
 import OAuth2Redirect from "./pages/oauth/OAuth2Redirect.jsx";
+import OAuth2Confirm from "./pages/oauth/OAuth2Confirm.jsx"; // ✅ (추가) 네이버 confirm 페이지
 import LinkAccount from "./pages/member/LinkAccount.jsx";
 
 const router = createBrowserRouter([
@@ -44,25 +45,37 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
 
-      // 공개 Auth
+      // =========================================================
+      // ✅ 공개 Auth
+      // =========================================================
       { path: "login", element: <Login /> },
       { path: "signup", element: <Signup /> },
       { path: "find-id", element: <FindId /> },
       { path: "find-pw", element: <FindPw /> },
       { path: "help", element: <Help /> },
 
-      // OAuth2
+      // =========================================================
+      // ✅ OAuth2 전용 라우트들
+      // - /oauth2/redirect : 백엔드 SuccessHandler redirect 도착지
+      // - /oauth2/confirm  : NAVER만 "계속할까요?" 확인 페이지
+      // - /link-account    : LINK_REQUIRED 계정연결 페이지
+      // =========================================================
       { path: "oauth2/redirect", element: <OAuth2Redirect /> },
+      { path: "oauth2/confirm", element: <OAuth2Confirm /> }, // ✅ (추가)
       { path: "link-account", element: <LinkAccount /> },
 
-      // Users(공개)
+      // =========================================================
+      // ✅ Users(공개)
+      // =========================================================
       {
         path: "users",
         element: <Users />,
         children: [{ path: ":username", element: <Profile /> }],
       },
 
-      // 보호 구간
+      // =========================================================
+      // ✅ 보호 구간(AuthRoute)
+      // =========================================================
       {
         element: <AuthRoute />,
         children: [
@@ -80,6 +93,9 @@ const router = createBrowserRouter([
         ],
       },
 
+      // =========================================================
+      // ✅ 404
+      // =========================================================
       { path: "*", element: <NotFound /> },
     ],
   },

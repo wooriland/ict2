@@ -12,6 +12,9 @@ import AuthEventProvider from "./provider/AuthEventProvider";
 // ✅ Toast
 import { ToastContainer, toast } from "react-toastify";
 
+// ✅ constants (키/값 통일)
+import { FLASH, FLASH_KEY, STORAGE_KEY } from "./config/constants";
+
 /*
   📌 App은 레이아웃 컴포넌트 역할을 수행한다.
   - Header는 항상 렌더링
@@ -20,10 +23,13 @@ import { ToastContainer, toast } from "react-toastify";
   - AuthEventProvider로 401/403/만료 UX(로그인 이동/안내) 처리
   - ToastContainer는 앱 전체에서 1번만 렌더링
 
-  ✅ (추가) OAuth 환영 토스트 1회 처리
+  ✅ OAuth 환영 토스트 1회 처리(완성형)
   - OAuth2Redirect.jsx가 sessionStorage에 심어둔
-    oauthWelcomeName/oauthProvider를 "홈(/)"에서 1회 소비해서 토스트를 띄운다.
-  - 카카오 placeholder(username/email)로 토스트 뜨는 문제 해결
+    FLASH_KEY.TOAST(=FLASH.SOCIAL_LOGIN_OK) + STORAGE_KEY.OAUTH2_DISPLAY_NAME
+    을 홈(/)에서 1회만 소비하여 토스트를 띄운다.
+  - 토스트 중복 방지:
+    (1) StrictMode는 Redirect에서 차단
+    (2) 여기서는 소비 후 즉시 removeItem
 */
 
 // ✅ OAuth 환영 토스트 1회 소비 게이트
@@ -34,23 +40,25 @@ function WelcomeToastGate() {
     // ✅ 홈에서만 띄우고 싶으면 유지 (원하면 제거 가능)
     if (location.pathname !== "/") return;
 
-    const provider = sessionStorage.getItem("oauthProvider"); // ex) KAKAO
-    const name = sessionStorage.getItem("oauthWelcomeName");  // ex) 권혁철(닉네임)
+    // ✅ OAuth2Redirect가 심어둔 "1회 토스트 플래그" 확인
+    const flash = sessionStorage.getItem(FLASH_KEY.TOAST);
+    if (!flash) return;
 
-    if (!name) return;
+    // ✅ SOCIAL_LOGIN_OK일 때만 환영 토스트
+    if (flash === FLASH.SOCIAL_LOGIN_OK) {
+      const name = sessionStorage.getItem(STORAGE_KEY.OAUTH2_DISPLAY_NAME);
 
-    // ✅ 1회성 소비(중복 방지)
-    sessionStorage.removeItem("oauthProvider");
-    sessionStorage.removeItem("oauthWelcomeName");
+      // ✅ 1회성 소비 (중복 방지)
+      sessionStorage.removeItem(FLASH_KEY.TOAST);
+      sessionStorage.removeItem(STORAGE_KEY.OAUTH2_DISPLAY_NAME);
 
-    // ✅ 문구 정책
-    const p = (provider || "").toUpperCase();
+      toast.success(`${name || "사용자"}님 환영합니다!`, { toastId: "social-login-ok" });
+      return;
+    }
 
-    // - KAKAO: 닉네임으로 환영
-    // - GOOGLE/NAVER: 지금은 displayName으로 환영(이메일로 꼭 환영하려면 /me 결과로 교체 권장)
-    if (p === "KAKAO") toast.success(`${name}로 로그인되었습니다.`);
-    else toast.success(`${name}로 로그인되었습니다.`);
-  }, [location.pathname]);
+    // ✅ 나머지 플래시는 Login.jsx(카드 메시지)가 소비하는 구조이므로
+    // 여기서는 건드리지 않는다.
+  }, [location.pathname, location.key]); // ✅ (보강) 라우팅 이동마다 안전하게 트리거
 
   return null;
 }
@@ -62,7 +70,7 @@ function App() {
       <AuthEventProvider>
         <Header />
 
-        {/* ✅ (추가) OAuth 환영 토스트 1회 처리 */}
+        {/* ✅ OAuth 환영 토스트 1회 처리 */}
         <WelcomeToastGate />
 
         {/* ✅ fixed-top Header 보정: 헤더 높이만큼 내려줌 */}
@@ -70,7 +78,7 @@ function App() {
           <Outlet />
         </div>
 
-        {/* ✅ 토스트 컨테이너: 앱 전체에서 1번만 (하단에 두는 게 안정적) */}
+        {/* ✅ 토스트 컨테이너: 앱 전체에서 1번만 */}
         <ToastContainer
           position="top-right"
           autoClose={2000}

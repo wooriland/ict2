@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useRef } from "react";
 
 /**
- * ✅ Auth 페이지 공통 좌/우 패널 (최종 + video auto play + ✅ 영상 위/아래 카피 지원)
+ * ✅ Auth 페이지 공통 좌/우 패널 (내집마련 톤 업그레이드)
  *
  * - 좌/우 동일 너비
  * - 왼쪽: 텍스트(안내/공지/도움말/링크)
@@ -12,22 +12,11 @@ import { useEffect, useMemo, useRef } from "react";
  * - 화면에 들어오면 자동 재생
  * - 무한 반복(loop)
  * - muted + playsInline로 브라우저 자동재생 정책 통과
- * - 화면에서 벗어나면 pause(원하면 제거 가능)
+ * - 화면에서 벗어나면 pause(옵션)
  *
- * ✅ 추가: 영상 카피(문구) 위치 분리
- * - right.mediaTopText    : 영상 위(overlay)
- * - right.mediaBottomText : 영상 아래(영상 박스 바깥)
- *
- * 사용 예:
- * <AuthSidePanels
- *   right={{
- *     title: "가이드 영상",
- *     text: "story.mp4가 화면에 보이면 자동 재생됩니다.",
- *     videoSrc: "/video/story.mp4",
- *     mediaTopText: "모든 집은, 작은 결심에서 시작됩니다.\n그 시작을 함께합니다.",
- *     mediaBottomText: "혼자 고민하던 시간이...\n그리고 그 시작은, 당신의 집으로 이어집니다.",
- *   }}
- * />
+ * ✅ 추가: 영상/이미지 카피(문구) 지원
+ * - right.mediaTopText    : 미디어 위(overlay)
+ * - right.mediaBottomText : 미디어 아래(caption)
  */
 export default function AuthSidePanels({ left = {}, right = {} }) {
   const videoRef = useRef(null);
@@ -44,11 +33,9 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
   // ✅ 화면 진입시 재생 / 이탈시 정지
   useEffect(() => {
     const el = videoRef.current;
-
-    // video 없으면 종료
     if (!el) return;
 
-    // 자동재생 정책 안정화
+    // ✅ 자동재생 정책 안정화
     el.muted = true;
     el.playsInline = true;
 
@@ -59,10 +46,8 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
 
         try {
           if (entry.isIntersecting) {
-            // ✅ 화면에 들어오면 재생
             await el.play();
           } else if (videoOptions.pauseWhenOutOfView) {
-            // ✅ 화면에서 나가면 정지(원하면 옵션으로 끌 수 있음)
             el.pause();
           }
         } catch (e) {
@@ -86,6 +71,11 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
         <div className="auth-side">
           <div className="auth-side-panel">
             <div className="auth-side-panel__body">
+              {/* ✅ 내집마련: 작은 뱃지(집/보안 느낌) */}
+              <div className="auth-side-badge" aria-hidden="true">
+                🏠 내집마련 가이드
+              </div>
+
               {/* 제목 */}
               <h3 className="auth-side-title">{left.title || "안내"}</h3>
 
@@ -144,6 +134,10 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
           <div className="auth-side-panel">
             {/* 상단 텍스트 영역(패널 기본 텍스트) */}
             <div className="auth-side-panel__body">
+              <div className="auth-side-badge" aria-hidden="true">
+                🔒 신뢰 & 안전
+              </div>
+
               <h3 className="auth-side-title">{right.title || "미디어"}</h3>
               {right.text && <p className="auth-side-text">{right.text}</p>}
             </div>
@@ -155,11 +149,8 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
                 <div className="auth-media-box">
                   {/* ✅ 이미지 위 오버레이 문구(옵션) */}
                   {right.mediaTopText && (
-                    <div
-                      className="auth-media-overlay auth-media-overlay--top"
-                      style={{ whiteSpace: "pre-line" }}
-                    >
-                      {right.mediaTopText}
+                    <div className="auth-media-overlay auth-media-overlay--top">
+                      <span style={{ whiteSpace: "pre-line" }}>{right.mediaTopText}</span>
                     </div>
                   )}
 
@@ -167,8 +158,8 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
 
                   {/* ✅ 이미지 아래 문구(옵션) */}
                   {right.mediaBottomText && (
-                    <div className="auth-media-caption" style={{ whiteSpace: "pre-line" }}>
-                      {right.mediaBottomText}
+                    <div className="auth-media-caption">
+                      <span style={{ whiteSpace: "pre-line" }}>{right.mediaBottomText}</span>
                     </div>
                   )}
                 </div>
@@ -179,11 +170,8 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
                 <div className="auth-media-box">
                   {/* ✅ 영상 위 오버레이 문구(옵션) */}
                   {right.mediaTopText && (
-                    <div
-                      className="auth-media-overlay auth-media-overlay--top"
-                      style={{ whiteSpace: "pre-line" }}
-                    >
-                      {right.mediaTopText}
+                    <div className="auth-media-overlay auth-media-overlay--top">
+                      <span style={{ whiteSpace: "pre-line" }}>{right.mediaTopText}</span>
                     </div>
                   )}
 
@@ -201,8 +189,8 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
 
                   {/* ✅ 영상 아래 문구(옵션) */}
                   {right.mediaBottomText && (
-                    <div className="auth-media-caption" style={{ whiteSpace: "pre-line" }}>
-                      {right.mediaBottomText}
+                    <div className="auth-media-caption">
+                      <span style={{ whiteSpace: "pre-line" }}>{right.mediaBottomText}</span>
                     </div>
                   )}
                 </div>
@@ -211,15 +199,7 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
               {/* 아무것도 없을 때 */}
               {!right.imageSrc && !right.videoSrc && (
                 <div className="auth-media-box">
-                  <div
-                    style={{
-                      padding: 20,
-                      textAlign: "center",
-                      color: "#64748b",
-                      fontWeight: 800,
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <div className="auth-media-empty">
                     미디어 영역
                     <br />
                     이미지 또는 영상을
@@ -228,6 +208,9 @@ export default function AuthSidePanels({ left = {}, right = {} }) {
                   </div>
                 </div>
               )}
+
+              {/* ✅ 하단 작은 안내(선택) */}
+              {right.footer && <div className="auth-media-foot">{right.footer}</div>}
             </div>
           </div>
         </div>
