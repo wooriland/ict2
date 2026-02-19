@@ -1,5 +1,32 @@
- /* fixed-top 적용시 화면이 안으로 들어가는 방지용 */
-body{
+:root{
+  /* Brand */
+  --brand-900:#0b1b2b;   /* deep navy */
+  --brand-700:#173a5e;
+  --brand-600:#1f4e7a;
 
-    padding-top: 55px;
+  /* Accent (home 느낌) */
+  --accent-600:#2f7a5a;  /* soft green */
+  --accent-500:#3a8f6a;
+
+  /* Surface */
+  --bg:#f6f2ea;          /* warm beige */
+  --card:#ffffff;
+  --line:#e7dfd3;
+
+  /* Text */
+  --text:#12202f;
+  --muted:#5b6775;
+
+  /* Radius & Shadow */
+  --r-lg:20px;
+  --r-md:14px;
+  --shadow: 0 10px 30px rgba(12, 24, 38, 0.12);
+
+  /* Controls */
+  --control-h:46px;
+}
+
+body{
+  background: var(--bg);
+  color: var(--text);
 }

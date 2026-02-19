@@ -1,15 +1,17 @@
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import { RouterProvider } from 'react-router-dom'
-import router from './router.jsx'
-import 'rc-pagination/assets/index.css';
+// ✅ 파일: src/main.jsx
+import { createRoot } from "react-dom/client";
+import "./index.css";
 
-/* 
-    1)<BrowserRouter> 컴포넌트 대신 RouterProvider 컴포넌트 렌더링
-    2)router.jsx에서 createBrowerRouter()함수로 라우팅 정보를 갖고 있는 BrowerRouter객체 가져오기
-    3)RouterProvider 컴포넌트의 router속성에 BrowerRouter객체를 지정   
-  
-*/
-createRoot(document.getElementById('root')).render(
- <RouterProvider router={router}/>,
-)
+import { RouterProvider } from "react-router-dom";
+import router from "./router.jsx";
+
+import "rc-pagination/assets/index.css";
+import "react-toastify/dist/ReactToastify.css";
+
+// ✅ (수정) UsersProvider는 RouterProvider 바깥에 두면
+// 내부에서 useNavigate/useLocation 같은 Router 훅을 쓰는 Provider들과 충돌이 나기 쉬움.
+// → UsersProvider는 App.jsx(라우터 내부)에서 감싸는 방식으로 두는 게 안전.
+// 따라서 main.jsx에서는 제거하고 RouterProvider만 렌더링.
+createRoot(document.getElementById("root")).render(
+  <RouterProvider router={router} />
+);
